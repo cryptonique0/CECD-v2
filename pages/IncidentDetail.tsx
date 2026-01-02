@@ -5,6 +5,7 @@ import { Incident, User, IncidentStatus, Severity, ChatMessage } from '../types'
 import { CATEGORY_ICONS, SEVERITY_COLORS, STATUS_COLORS } from '../constants';
 import { initialUsers } from '../mockData';
 import { baseVaultService } from '../services/baseVaultService';
+import { zkService } from '../services/zkService';
 
 interface IncidentDetailProps {
   incidents: Incident[];
@@ -21,6 +22,13 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incidents, setIncidents
   const [isDonating, setIsDonating] = useState(false);
   const [donationAmount, setDonationAmount] = useState('0.1');
   const [donationCurrency, setDonationCurrency] = useState<'ETH' | 'USDC'>('ETH');
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [copyFeedback, setCopyFeedback] = useState(false);
+  
+  // ZK Verification State
+  const [isVerifyingZk, setIsVerifyingZk] = useState(false);
+  const [zkVerificationResult, setZkVerificationResult] = useState<'idle' | 'valid' | 'invalid'>('idle');
+  
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -80,8 +88,91 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incidents, setIncidents
     setIncident({ ...incident, status: newStatus });
   };
 
+  const handleVerifyZk = async () => {
+    if (!incident?.zkProof) return;
+    setIsVerifyingZk(true);
+    setZkVerificationResult('idle');
+    try {
+      // Cryptographic verification call to our ZK Service
+      const isValid = await zkService.verifyProof(incident.zkProof);
+      setZkVerificationResult(isValid ? 'valid' : 'invalid');
+    } catch (e) {
+      setZkVerificationResult('invalid');
+    } finally {
+      setIsVerifyingZk(false);
+    }
+  };
+
+  const shareUrl = window.location.href;
+  const qrData = `CECD-INTEL: ${incident.id} | URI: ${shareUrl}`;
+  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(qrData)}&bgcolor=0f172a&color=137fec`;
+
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(shareUrl);
+    setCopyFeedback(true);
+    setTimeout(() => setCopyFeedback(false), 2000);
+  };
+
   return (
     <div className="p-6 md:p-8 flex flex-col gap-6 relative">
+      {/* Share Incident Modal */}
+      {showShareModal && (
+        <div className="fixed inset-0 z-[2000] flex items-center justify-center p-6">
+          <div className="absolute inset-0 bg-background-dark/80 backdrop-blur-md animate-in fade-in duration-300" onClick={() => setShowShareModal(false)}></div>
+          <div className="bg-card-dark border border-border-dark w-full max-w-sm rounded-[3rem] p-8 shadow-2xl relative z-10 animate-in fade-in zoom-in-95 duration-300 flex flex-col items-center gap-6">
+            <div className="w-full flex justify-between items-center mb-2">
+              <h3 className="text-sm font-black text-white uppercase italic tracking-widest">Share Intel</h3>
+              <button onClick={() => setShowShareModal(false)} className="text-text-secondary hover:text-white transition-colors">
+                <span className="material-symbols-outlined text-xl">close</span>
+              </button>
+            </div>
+            
+            <div className="bg-slate-900 p-6 rounded-[2.5rem] border border-primary/30 shadow-glow relative group">
+              <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+              <img src={qrCodeUrl} alt="Incident QR Code" className="w-48 h-48 rounded-2xl relative z-10" />
+            </div>
+
+            <div className="flex flex-col items-center gap-1 text-center">
+              <span className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">{incident.id}</span>
+              <p className="text-[9px] text-text-secondary font-bold uppercase tracking-tight opacity-60">Scan to access encrypted situation room</p>
+            </div>
+
+            <div className="w-full flex flex-col gap-3">
+              <button 
+                onClick={handleCopyLink}
+                className={`w-full py-4 rounded-2xl border flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all ${copyFeedback ? 'bg-emerald-500/10 border-emerald-500/40 text-accent-green' : 'bg-background-dark border-border-dark text-text-secondary hover:border-primary/50'}`}
+              >
+                <span className="material-symbols-outlined text-sm">{copyFeedback ? 'check_circle' : 'content_copy'}</span>
+                {copyFeedback ? 'Link Copied' : 'Copy Direct Link'}
+              </button>
+              <button 
+                onClick={() => setShowShareModal(false)}
+                className="w-full py-4 rounded-2xl bg-slate-800 text-white text-[10px] font-black uppercase tracking-widest hover:bg-slate-700 transition-all"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Verification Success/Failure Banner Overlay */}
+      {zkVerificationResult !== 'idle' && (
+        <div className={`fixed top-24 left-1/2 -translate-x-1/2 z-[1500] px-6 py-3 rounded-full border shadow-2xl animate-in slide-in-from-top-4 duration-500 flex items-center gap-3 backdrop-blur-md ${
+          zkVerificationResult === 'valid' ? 'bg-accent-green/20 border-accent-green/40 text-accent-green' : 'bg-accent-red/20 border-accent-red/40 text-accent-red'
+        }`}>
+          <span className="material-symbols-outlined filled">
+            {zkVerificationResult === 'valid' ? 'verified' : 'report_problem'}
+          </span>
+          <span className="text-sm font-black uppercase tracking-widest italic">
+            {zkVerificationResult === 'valid' ? 'ZK-Proof Integrity Verified' : 'ZK-Proof Verification Failed'}
+          </span>
+          <button onClick={() => setZkVerificationResult('idle')} className="ml-4 opacity-60 hover:opacity-100">
+            <span className="material-symbols-outlined text-sm">close</span>
+          </button>
+        </div>
+      )}
+
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 pb-2 border-b border-border-dark">
         <div className="flex flex-col gap-2">
           <div className="flex items-center gap-2 text-sm text-text-secondary">
@@ -89,14 +180,32 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incidents, setIncidents
             <span className="material-symbols-outlined text-xs">chevron_right</span>
             <span className="text-white font-medium">{incident.id}</span>
           </div>
-          <h1 className="text-3xl font-black text-white italic tracking-tight uppercase">{incident.title}</h1>
+          <div className="flex items-center gap-4">
+            <h1 className="text-3xl font-black text-white italic tracking-tight uppercase">{incident.title}</h1>
+            {incident.isWhisperMode && (
+              <div className="flex items-center gap-1.5 px-2.5 py-1 bg-cyan-500/10 border border-cyan-400/30 rounded-lg text-cyan-400 animate-in fade-in zoom-in duration-500">
+                <span className="material-symbols-outlined text-sm filled">shield_lock</span>
+                <span className="text-[9px] font-black uppercase tracking-widest">ZK-Shielded Identity</span>
+              </div>
+            )}
+          </div>
           <div className="flex flex-wrap items-center gap-3 text-sm text-text-secondary">
-            <span className="flex items-center gap-1 font-bold"><span className="material-symbols-outlined text-base">person</span> Authorized by {initialUsers.find(u => u.id === incident.reporterId)?.name || 'Command'}</span>
+            <span className="flex items-center gap-1 font-bold">
+              <span className="material-symbols-outlined text-base">person</span> 
+              {incident.isWhisperMode ? 'Shielded Reporter' : (initialUsers.find(u => u.id === incident.reporterId)?.name || 'Command')}
+            </span>
             <span className="size-1 rounded-full bg-slate-600"></span>
             <span className="flex items-center gap-1 font-bold"><span className="material-symbols-outlined text-base">schedule</span> {new Date(incident.timestamp).toLocaleString()}</span>
           </div>
         </div>
         <div className="flex gap-3">
+          <button 
+            onClick={() => setShowShareModal(true)}
+            className="flex items-center justify-center size-10 rounded-lg bg-slate-800 border border-border-dark text-white hover:bg-slate-700 transition-all active:scale-95 shadow-lg"
+            title="Share Incident Intel"
+          >
+            <span className="material-symbols-outlined text-[20px]">share</span>
+          </button>
           <button className="flex items-center gap-2 px-4 h-10 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-sm shadow-glow transition-all active:scale-95" onClick={() => {
             const el = document.getElementById('donation-section');
             el?.scrollIntoView({ behavior: 'smooth' });
@@ -128,6 +237,11 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incidents, setIncidents
             <p className="text-white text-2xl font-black font-mono leading-tight">1.25</p>
             <p className="text-[10px] text-primary font-bold mb-1 uppercase">ETH</p>
           </div>
+          {incident.zkProof && (
+             <div className="absolute top-0 right-0 p-2 opacity-20 group-hover:opacity-100 transition-opacity">
+               <span className="material-symbols-outlined text-cyan-400 text-xl" title="ZK Proof Attached">encrypted</span>
+             </div>
+          )}
         </div>
       </div>
 
@@ -138,6 +252,45 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incidents, setIncidents
               <span className="material-symbols-outlined text-primary">description</span> Situation Analysis
             </h3>
             <p className="text-text-secondary text-sm leading-relaxed mb-6">{incident.description}</p>
+            
+            {incident.zkProof && (
+              <div className="mt-4 p-5 rounded-[2rem] bg-slate-900/50 border border-cyan-500/20 flex flex-col gap-4">
+                 <div className="flex items-center justify-between">
+                   <div className="flex items-center gap-2">
+                     <span className="material-symbols-outlined text-cyan-400 text-lg">verified_user</span>
+                     <span className="text-[10px] font-black text-cyan-400 uppercase tracking-widest">Verification Intel (ZK-SNARK)</span>
+                   </div>
+                   
+                   {zkVerificationResult === 'idle' ? (
+                     <button 
+                       onClick={handleVerifyZk}
+                       disabled={isVerifyingZk}
+                       className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 hover:bg-cyan-500/20 transition-all text-[9px] font-black uppercase tracking-widest disabled:opacity-50 shadow-glow"
+                     >
+                       {isVerifyingZk ? <span className="material-symbols-outlined text-[12px] animate-spin">sync</span> : <span className="material-symbols-outlined text-[12px]">security</span>}
+                       {isVerifyingZk ? 'Calculating Proof...' : 'Verify Cryptographic Proof'}
+                     </button>
+                   ) : (
+                     <div className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full border text-[9px] font-black uppercase tracking-widest animate-in fade-in zoom-in duration-300 ${
+                       zkVerificationResult === 'valid' ? 'bg-emerald-500/10 text-accent-green border-accent-green/30' : 'bg-accent-red/10 text-accent-red border-accent-red/30'
+                     }`}>
+                       <span className="material-symbols-outlined text-[12px]">{zkVerificationResult === 'valid' ? 'verified' : 'error'}</span>
+                       {zkVerificationResult === 'valid' ? 'Proof Verified' : 'Integrity Failure'}
+                     </div>
+                   )}
+                 </div>
+                 
+                 <div className="relative group">
+                   <div className="absolute inset-0 bg-cyan-400/5 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                   <div className="flex flex-col gap-1">
+                     <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest ml-1">On-Chain Proof Data</span>
+                     <code className="block p-4 text-[9px] font-mono text-slate-400 break-all bg-background-dark/30 rounded-xl border border-border-dark select-all">
+                       {incident.zkProof}
+                     </code>
+                   </div>
+                 </div>
+              </div>
+            )}
           </section>
 
           <section id="donation-section" className="bg-gradient-to-br from-primary/10 to-emerald-500/5 rounded-2xl border border-primary/20 p-8 flex flex-col md:flex-row items-center gap-8">

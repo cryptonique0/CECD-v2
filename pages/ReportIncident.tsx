@@ -4,19 +4,22 @@ import { useNavigate } from 'react-router-dom';
 import { Incident, IncidentCategory, Severity, IncidentStatus, User } from '../types';
 import { CATEGORY_ICONS, SEVERITY_COLORS } from '../constants';
 import { aiService, PredictionResult } from '../services/aiService';
+import { zkService } from '../services/zkService';
 
 interface ReportIncidentProps {
   onSubmit: (incident: Incident) => void;
   currentUser: User;
+  isWhisperMode: boolean;
+  setIsWhisperMode: (active: boolean) => void;
 }
 
-const ReportIncident: React.FC<ReportIncidentProps> = ({ onSubmit, currentUser }) => {
+const ReportIncident: React.FC<ReportIncidentProps> = ({ onSubmit, currentUser, isWhisperMode, setIsWhisperMode }) => {
   const navigate = useNavigate();
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [isAddressLoading, setIsAddressLoading] = useState(false);
+  const [isZkLoading, setIsZkLoading] = useState(false);
   const [aiResult, setAiResult] = useState<PredictionResult | null>(null);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
-  const [isWhisperMode, setIsWhisperMode] = useState(false);
   
   const [formData, setFormData] = useState({
     title: '',
@@ -59,7 +62,6 @@ const ReportIncident: React.FC<ReportIncidentProps> = ({ onSubmit, currentUser }
     setIsAiLoading(true);
     setAnalysisError(null);
     try {
-      // Extended analysis to include title suggestion
       const result = await aiService.predictIncident(formData.description);
       setAiResult(result);
       
@@ -71,10 +73,8 @@ const ReportIncident: React.FC<ReportIncidentProps> = ({ onSubmit, currentUser }
         sev => sev.toLowerCase() === result.severity.toLowerCase()
       ) || Severity.LOW;
 
-      // Automatically pre-fill the form with AI findings
       setFormData(prev => ({
         ...prev,
-        // If the user hasn't written a title, suggest one based on analysis reasoning or a snippet
         title: prev.title || result.reasoning.split('.')[0].slice(0, 50) + "...",
         category: predictedCategory as IncidentCategory,
         severity: predictedSeverity as Severity
@@ -87,8 +87,24 @@ const ReportIncident: React.FC<ReportIncidentProps> = ({ onSubmit, currentUser }
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    let zkProof: string | undefined = undefined;
+    
+    if (isWhisperMode) {
+      setIsZkLoading(true);
+      try {
+        // Generating ZK proof for the reporter's identity based on full payload
+        zkProof = await zkService.generateIncidentProof(currentUser.id, formData);
+      } catch (err) {
+        alert("ZK-Prover Error: Failed to generate anonymity proof. Protocol aborted.");
+        setIsZkLoading(false);
+        return;
+      }
+      setIsZkLoading(false);
+    }
+
     const newIncident: Incident = {
       id: `INC-25-${Math.floor(Math.random() * 900) + 100}`,
       title: formData.title || `${formData.category} ALERT`,
@@ -106,7 +122,8 @@ const ReportIncident: React.FC<ReportIncidentProps> = ({ onSubmit, currentUser }
       blockNumber: 1950100 + Math.floor(Math.random() * 100),
       hash: '0x' + Math.random().toString(16).slice(2, 66).padEnd(64, '0'),
       confidenceScore: aiResult?.confidence || 0.5,
-      isWhisperMode: isWhisperMode
+      isWhisperMode: isWhisperMode,
+      zkProof: zkProof
     };
     onSubmit(newIncident);
     navigate('/incidents');
@@ -114,6 +131,23 @@ const ReportIncident: React.FC<ReportIncidentProps> = ({ onSubmit, currentUser }
 
   return (
     <div className="p-6 md:p-12 lg:px-24 max-w-6xl mx-auto flex flex-col gap-10">
+      {/* Loading Overlay for ZK Proof Generation */}
+      {isZkLoading && (
+        <div className="fixed inset-0 z-[1000] flex flex-col items-center justify-center bg-background-dark/95 backdrop-blur-xl animate-in fade-in duration-300">
+           <div className="relative mb-10">
+             <div className="size-32 rounded-full border-4 border-cyan-500/20 flex items-center justify-center animate-spin duration-[3000ms]">
+               <div className="size-24 rounded-full border-4 border-t-cyan-400 border-l-cyan-400 border-r-transparent border-b-transparent"></div>
+             </div>
+             <span className="material-symbols-outlined text-4xl text-cyan-400 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 filled">shield_with_heart</span>
+           </div>
+           <h2 className="text-2xl font-black text-white uppercase italic tracking-widest mb-2">Generating ZK-SNARK Proof</h2>
+           <p className="text-text-secondary text-xs uppercase font-bold tracking-[0.2em] opacity-60 animate-pulse">Obfuscating PII & Signing Privacy-Preserving Payload</p>
+           <div className="mt-8 w-64 h-1 bg-slate-800 rounded-full overflow-hidden">
+             <div className="h-full bg-cyan-400 animate-[loading_2.5s_ease-in-out_infinite]"></div>
+           </div>
+        </div>
+      )}
+
       <div className="flex flex-col gap-2">
         <h1 className="text-4xl font-black text-white leading-tight italic tracking-tighter uppercase">Global Incident Dispatch</h1>
         <div className="flex items-center gap-3">
@@ -121,14 +155,19 @@ const ReportIncident: React.FC<ReportIncidentProps> = ({ onSubmit, currentUser }
              <span className="material-symbols-outlined text-[14px] text-primary filled animate-pulse">radar</span>
              <span className="text-[10px] font-black text-primary uppercase tracking-widest">Base Ledger Sync Active</span>
            </div>
-           <p className="text-text-secondary text-base italic opacity-80">Cryptographically secured reporting for community resilience.</p>
+           <div className="flex items-center gap-1.5 px-3 py-1 bg-cyan-500/10 border border-cyan-500/20 rounded-full">
+             <span className="material-symbols-outlined text-[14px] text-cyan-400 filled">security</span>
+             <span className="text-[10px] font-black text-cyan-400 uppercase tracking-widest">ZK-Shielding Enabled</span>
+           </div>
         </div>
       </div>
 
       <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-12 gap-10 pb-24">
         <div className="lg:col-span-7 flex flex-col gap-8">
           <section className="bg-card-dark border border-border-dark rounded-[3rem] p-8 md:p-10 flex flex-col gap-8 shadow-2xl relative overflow-hidden">
-            {isWhisperMode && <div className="absolute top-0 right-0 px-6 py-2 bg-accent-orange text-black text-[10px] font-black uppercase tracking-widest shadow-lg">Whisper Mode Active</div>}
+            {isWhisperMode && <div className="absolute top-0 right-0 px-6 py-2 bg-cyan-500 text-black text-[10px] font-black uppercase tracking-widest shadow-lg flex items-center gap-2">
+              <span className="material-symbols-outlined text-xs">shield_lock</span> ZK-WHISPER ACTIVE
+            </div>}
             
             <div className="flex items-center justify-between pb-6 border-b border-border-dark">
               <div className="flex items-center gap-4">
@@ -137,14 +176,21 @@ const ReportIncident: React.FC<ReportIncidentProps> = ({ onSubmit, currentUser }
                 </div>
                 <h3 className="text-xl font-bold text-white uppercase italic tracking-tight">Situation Intel</h3>
               </div>
-              <button 
-                type="button" 
-                onClick={() => setIsWhisperMode(!isWhisperMode)}
-                className={`flex items-center gap-2.5 px-4 py-2 rounded-xl text-[10px] font-black border transition-all active:scale-95 ${isWhisperMode ? 'bg-accent-orange/10 text-accent-orange border-accent-orange/40 shadow-glow-orange' : 'text-text-secondary border-border-dark hover:border-slate-500'}`}
-              >
-                <span className="material-symbols-outlined text-sm">{isWhisperMode ? 'visibility_off' : 'visibility'}</span>
-                {isWhisperMode ? 'ANONYMOUS' : 'PUBLIC'}
-              </button>
+              
+              {/* Tactical Toggle Switch for ZK-Whisper Mode */}
+              <div className="flex items-center gap-3">
+                <div className="flex flex-col items-end">
+                  <span className="text-[8px] font-black text-cyan-400 uppercase tracking-[0.2em] leading-none mb-1">ZK-Whisper Mode</span>
+                  <span className="text-[10px] font-bold text-text-secondary uppercase tracking-tight opacity-60 leading-none">Anonymity Protocol</span>
+                </div>
+                <button 
+                  type="button" 
+                  onClick={() => setIsWhisperMode(!isWhisperMode)}
+                  className={`relative w-14 h-7 rounded-full transition-all duration-300 ${isWhisperMode ? 'bg-cyan-500 shadow-[0_0_15px_rgba(6,182,212,0.5)]' : 'bg-slate-800'}`}
+                >
+                  <div className={`absolute top-1 size-5 rounded-full bg-white shadow-md transition-all duration-300 ${isWhisperMode ? 'left-8' : 'left-1'}`}></div>
+                </button>
+              </div>
             </div>
             
             <div className="flex flex-col gap-6">
@@ -304,13 +350,13 @@ const ReportIncident: React.FC<ReportIncidentProps> = ({ onSubmit, currentUser }
 
           <div className="flex flex-col gap-5 mt-auto">
             <button type="submit" className="w-full py-6 rounded-[2.5rem] bg-primary hover:bg-primary-dark text-white font-black text-xl transition-all shadow-glow-lg active:scale-95 flex items-center justify-center gap-4 italic uppercase tracking-tighter">
-              <span>Broadcast to Ledger</span>
-              <span className="material-symbols-outlined text-2xl">send_and_archive</span>
+              <span>{isWhisperMode ? 'Shield & Broadcast' : 'Broadcast to Ledger'}</span>
+              <span className="material-symbols-outlined text-2xl">{isWhisperMode ? 'security' : 'send_and_archive'}</span>
             </button>
             <div className="flex items-center justify-center gap-3 px-6 text-center">
                <span className="material-symbols-outlined text-accent-green text-sm filled">lock</span>
                <p className="text-[10px] text-text-secondary/60 leading-relaxed uppercase font-black tracking-widest">
-                 Signed by Base Wallet ID: 0x...{currentUser.walletAddress.slice(-4)}
+                 {isWhisperMode ? 'Identity shielded via ZK-SNARK circuit v2.5' : `Signed by Base Wallet ID: 0x...${currentUser.walletAddress.slice(-4)}`}
                </p>
             </div>
           </div>

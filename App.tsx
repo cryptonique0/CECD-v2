@@ -23,6 +23,7 @@ const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User>(initialUsers[0]); 
   const [incidents, setIncidents] = useState<Incident[]>(initialIncidents);
   const [volunteers, setVolunteers] = useState<User[]>(initialUsers);
+  const [globalWhisperMode, setGlobalWhisperMode] = useState(false);
   
   const lastResolvedCoords = useRef<{lat: number, lng: number} | null>(null);
   const currentUserIdRef = useRef<string>(currentUser.id);
@@ -139,7 +140,7 @@ const App: React.FC = () => {
               <Route path="/" element={<Dashboard incidents={incidents} volunteers={volunteers} currentUser={currentUser} />} />
               <Route path="/incidents" element={<Incidents incidents={incidents} />} />
               <Route path="/incidents/:id" element={<IncidentDetail incidents={incidents} setIncidents={setIncidents} currentUser={currentUser} />} />
-              <Route path="/report" element={<ReportIncident onSubmit={addIncident} currentUser={currentUser} />} />
+              <Route path="/report" element={<ReportIncident onSubmit={addIncident} currentUser={currentUser} isWhisperMode={globalWhisperMode} setIsWhisperMode={setGlobalWhisperMode} />} />
               <Route path="/volunteers" element={<Volunteers volunteers={volunteers} onUpdateStatus={updateVolunteerStatus} onAddVolunteer={addVolunteer} />} />
               <Route path="/admin" element={<AdminGovernance />} />
               <Route path="/profile" element={<Profile user={currentUser} />} />
@@ -149,7 +150,7 @@ const App: React.FC = () => {
           </div>
         </main>
         
-        <AiAssistant />
+        <AiAssistant incidents={incidents} isWhisperActive={globalWhisperMode} />
       </div>
     </Router>
   );

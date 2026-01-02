@@ -52,6 +52,7 @@ export interface User {
   lng?: number;
   skills: string[];
   isVerified: boolean;
+  zkVerified?: boolean;
   status: 'Available' | 'Busy' | 'OffDuty';
 }
 
@@ -73,6 +74,7 @@ export interface Incident {
   hash?: string;
   confidenceScore?: number;
   isWhisperMode?: boolean;
+  zkProof?: string;
 }
 
 export interface Donation {

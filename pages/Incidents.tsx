@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Incident, IncidentStatus, Severity, IncidentCategory } from '../types';
 import { useNavigate } from 'react-router-dom';
 import { STATUS_COLORS, SEVERITY_COLORS, CATEGORY_ICONS } from '../constants';
@@ -11,21 +11,33 @@ interface IncidentsProps {
 const Incidents: React.FC<IncidentsProps> = ({ incidents }) => {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('All');
   const [filterSeverity, setFilterSeverity] = useState<string>('All');
   const [filterCategory, setFilterCategory] = useState<string>('All');
   const [radius, setRadius] = useState<number>(100);
   const [sortBy, setSortBy] = useState<'newest' | 'severity' | 'oldest'>('newest');
 
+  // Debounce effect: Update debouncedSearchQuery only after 300ms of inactivity
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 300);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [searchQuery]);
+
   const filteredIncidents = useMemo(() => {
     let result = incidents.filter(i => {
       const matchesStatus = filterStatus === 'All' || i.status === filterStatus;
       const matchesSeverity = filterSeverity === 'All' || i.severity === filterSeverity;
       const matchesCategory = filterCategory === 'All' || i.category === filterCategory;
-      const matchesSearch = i.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                            i.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                            i.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                            i.locationName.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesSearch = 
+        i.title.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) || 
+        i.id.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
+        i.description.toLowerCase().includes(debouncedSearchQuery.toLowerCase());
       
       const pseudoDistance = (parseInt(i.id.replace(/\D/g, '')) % 100);
       const matchesRadius = radius === 100 || pseudoDistance <= radius;
@@ -41,14 +53,15 @@ const Incidents: React.FC<IncidentsProps> = ({ incidents }) => {
     }
 
     return result;
-  }, [incidents, searchQuery, filterStatus, filterSeverity, filterCategory, radius, sortBy]);
+  }, [incidents, debouncedSearchQuery, filterStatus, filterSeverity, filterCategory, radius, sortBy]);
 
   return (
     <div className="p-6 md:p-8 lg:p-10 flex flex-col gap-8">
+      {/* Header Section */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div className="flex flex-col gap-2">
           <h1 className="text-3xl font-black text-white italic tracking-tight uppercase">Emergency Repository</h1>
-          <p className="text-text-secondary text-base italic">Filterable real-time ledger of verified global Base incidents. v2.5.0</p>
+          <p className="text-text-secondary text-base italic">Real-time immutable ledger of global Base incidents.</p>
         </div>
         <div className="flex gap-3">
            <div className="flex bg-card-dark border border-border-dark rounded-xl p-1">
@@ -72,7 +85,49 @@ const Incidents: React.FC<IncidentsProps> = ({ incidents }) => {
         </div>
       </div>
 
+      {/* Global Command Search Console */}
+      <div className="w-full bg-card-dark border border-border-dark rounded-[2.5rem] p-6 shadow-2xl relative overflow-hidden group">
+        <div className="absolute inset-0 bg-primary/5 opacity-50"></div>
+        <div className="relative flex flex-col md:flex-row items-center gap-6">
+          <div className="flex-1 w-full relative">
+            <span className="material-symbols-outlined absolute left-5 top-1/2 -translate-y-1/2 text-primary text-2xl group-focus-within:animate-pulse">search</span>
+            <input 
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className="w-full bg-background-dark/80 border border-border-dark rounded-2xl pl-14 pr-24 py-5 text-lg text-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all placeholder:text-text-secondary/20 font-medium italic" 
+              placeholder="Search by ID, Title, or Description..."
+            />
+            <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-3">
+              {searchQuery !== debouncedSearchQuery && (
+                <div className="animate-spin size-4 border-2 border-primary border-t-transparent rounded-full opacity-60"></div>
+              )}
+              {searchQuery && (
+                <button 
+                  onClick={() => setSearchQuery('')}
+                  className="size-8 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center transition-colors border border-border-dark"
+                >
+                  <span className="material-symbols-outlined text-xs text-text-secondary">close</span>
+                </button>
+              )}
+              <div className="px-3 py-1.5 rounded-lg bg-primary/10 border border-primary/20 text-primary text-[10px] font-black uppercase tracking-widest">
+                {filteredIncidents.length} Match
+              </div>
+            </div>
+          </div>
+          <div className="hidden lg:flex items-center gap-4 px-6 border-l border-border-dark">
+            <div className="flex flex-col items-end">
+              <p className="text-[10px] font-black text-text-secondary uppercase tracking-widest opacity-60">Ledger Status</p>
+              <div className="flex items-center gap-2">
+                <span className="size-2 rounded-full bg-accent-green animate-pulse"></span>
+                <span className="text-[11px] font-black text-white uppercase italic">Active Sync</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        {/* Advanced Triage Sidebar */}
         <aside className="bg-card-dark p-6 rounded-2xl border border-border-dark h-fit flex flex-col gap-6 sticky top-24 shadow-xl">
           <h3 className="text-sm font-bold text-white uppercase tracking-widest flex items-center justify-between italic">
             <div className="flex items-center gap-2">
@@ -95,7 +150,7 @@ const Incidents: React.FC<IncidentsProps> = ({ incidents }) => {
 
           <div className="space-y-6">
             <div className="flex flex-col gap-2">
-              <label className="text-[10px] font-bold text-text-secondary uppercase flex items-center gap-1.5">
+              <label className="text-[10px] font-bold text-text-secondary uppercase flex items-center gap-1.5 tracking-widest">
                 <span className="material-symbols-outlined text-sm">emergency</span> Status
               </label>
               <div className="flex flex-wrap gap-2">
@@ -114,7 +169,7 @@ const Incidents: React.FC<IncidentsProps> = ({ incidents }) => {
             </div>
 
             <div className="flex flex-col gap-2">
-              <label className="text-[10px] font-bold text-text-secondary uppercase flex items-center gap-1.5">
+              <label className="text-[10px] font-bold text-text-secondary uppercase flex items-center gap-1.5 tracking-widest">
                 <span className="material-symbols-outlined text-sm">priority_high</span> Severity
               </label>
               <div className="grid grid-cols-2 gap-2">
@@ -133,13 +188,13 @@ const Incidents: React.FC<IncidentsProps> = ({ incidents }) => {
             </div>
 
             <div className="flex flex-col gap-2">
-              <label className="text-[10px] font-bold text-text-secondary uppercase flex items-center gap-1.5">
+              <label className="text-[10px] font-bold text-text-secondary uppercase flex items-center gap-1.5 tracking-widest">
                 <span className="material-symbols-outlined text-sm">category</span> Category
               </label>
               <select 
                 value={filterCategory}
                 onChange={e => setFilterCategory(e.target.value)}
-                className="bg-background-dark border border-border-dark rounded-xl text-sm text-white focus:ring-primary h-10 px-3 outline-none"
+                className="bg-background-dark border border-border-dark rounded-xl text-sm text-white focus:ring-primary h-12 px-3 outline-none uppercase font-bold"
               >
                 <option value="All">All Categories</option>
                 {Object.values(IncidentCategory).map(c => <option key={c} value={c}>{c}</option>)}
@@ -148,17 +203,8 @@ const Incidents: React.FC<IncidentsProps> = ({ incidents }) => {
           </div>
         </aside>
 
+        {/* Incidents Grid */}
         <div className="lg:col-span-3 flex flex-col gap-6">
-          <div className="relative group">
-            <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-text-secondary transition-colors group-focus-within:text-primary">search</span>
-            <input 
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              className="w-full bg-card-dark border border-border-dark rounded-2xl pl-12 p-4 text-sm text-white focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-text-secondary/30" 
-              placeholder="Query global ledger by ID, region, or hash..."
-            />
-          </div>
-
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {filteredIncidents.map(incident => (
               <div 
@@ -180,7 +226,7 @@ const Incidents: React.FC<IncidentsProps> = ({ incidents }) => {
                       {incident.severity}
                     </span>
                   </div>
-                  <p className="text-sm text-text-secondary line-clamp-2 leading-relaxed">
+                  <p className="text-sm text-text-secondary line-clamp-2 leading-relaxed h-10 italic">
                     {incident.description}
                   </p>
                 </div>
@@ -193,15 +239,23 @@ const Incidents: React.FC<IncidentsProps> = ({ incidents }) => {
                     </div>
                     <button 
                       onClick={(e) => { e.stopPropagation(); navigate(`/incidents/${incident.id}`); }}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500 text-white hover:bg-emerald-600 transition-all text-[10px] font-black uppercase tracking-widest shadow-glow"
+                      className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-emerald-500 text-white hover:bg-emerald-600 transition-all text-[10px] font-black uppercase tracking-widest shadow-glow"
                     >
                       <span className="material-symbols-outlined text-xs">volunteer_activism</span>
-                      Donate Now
+                      Enter Room
                     </button>
                   </div>
                 </div>
               </div>
             ))}
+
+            {filteredIncidents.length === 0 && (
+              <div className="col-span-full py-20 bg-card-dark/30 border-2 border-dashed border-border-dark rounded-[3rem] flex flex-col items-center justify-center text-center">
+                <span className="material-symbols-outlined text-6xl text-text-secondary/20 mb-4">search_off</span>
+                <p className="text-xl font-black text-white/50 uppercase tracking-widest italic">No Intel Matches Query</p>
+                <p className="text-sm text-text-secondary max-w-xs mt-2 italic opacity-60">Try adjusting your triage parameters or tactical query.</p>
+              </div>
+            )}
           </div>
         </div>
       </div>

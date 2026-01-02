@@ -14,7 +14,7 @@ const AdminGovernance: React.FC = () => {
     { label: 'Trust Decay Rate', value: '5%', unit: 'per 24hr', icon: 'history_toggle_off' },
     { label: 'Escalation Threshold', value: '3', unit: 'sigs required', icon: 'verified_user' },
     { label: 'Base Node Status', value: 'Active', unit: '0x39...a21', icon: 'dns', color: 'text-accent-green' },
-    { label: 'L2 Sequencer', value: 'Healthy', unit: 'Base Mainnet', icon: 'fact_check' },
+    { label: 'ZK Prover Load', value: '14%', unit: 'Optimal', icon: 'security', color: 'text-cyan-400' },
   ];
 
   return (
@@ -72,19 +72,29 @@ const AdminGovernance: React.FC = () => {
 
         <section className="bg-card-dark border border-border-dark rounded-2xl overflow-hidden shadow-2xl flex flex-col">
           <div className="px-6 py-4 border-b border-border-dark bg-[#111a22] flex justify-between items-center">
-            <h3 className="text-sm font-bold text-white uppercase tracking-widest italic">Base Mainnet Ledger Audit</h3>
+            <h3 className="text-sm font-bold text-white uppercase tracking-widest italic">ZK-Rollup Health & Audit</h3>
           </div>
           <div className="p-6 flex flex-col gap-6 overflow-y-auto custom-scrollbar h-[350px]">
+             <div className="p-4 bg-cyan-400/5 border border-cyan-400/20 rounded-2xl">
+               <div className="flex justify-between mb-2">
+                 <span className="text-[10px] font-black text-cyan-400 uppercase tracking-widest">Avg Verification Time</span>
+                 <span className="text-[10px] font-mono text-white">420ms</span>
+               </div>
+               <div className="w-full h-1 bg-slate-800 rounded-full overflow-hidden">
+                  <div className="h-full bg-cyan-400" style={{ width: '42%' }}></div>
+               </div>
+             </div>
+
              {[1, 2, 3, 4, 5].map(i => (
                <div key={i} className="flex gap-4 items-start relative pb-6 border-l border-border-dark last:border-0 ml-2 pl-6">
-                 <div className="absolute left-[-5px] top-1 size-2.5 rounded-full bg-primary ring-4 ring-background-dark z-10"></div>
+                 <div className="absolute left-[-5px] top-1 size-2.5 rounded-full bg-cyan-400 ring-4 ring-background-dark z-10"></div>
                  <div className="flex flex-col gap-1">
                    <div className="flex items-center gap-2">
-                     <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Base Event</span>
-                     <span className="text-[10px] font-mono text-text-secondary opacity-60">Today, 0{i}:24 AM</span>
+                     <span className="text-[10px] font-black text-cyan-200 uppercase tracking-widest">ZK-Proof Verified</span>
+                     <span className="text-[10px] font-mono text-text-secondary opacity-60">Batch #952{i}</span>
                    </div>
-                   <p className="text-sm font-medium text-white">Trust decay algorithm broadcast to <span className="text-primary">124 Base Nodes</span></p>
-                   <p className="text-xs text-text-secondary opacity-60 font-mono">Tx: 0x9a83f...2e{i}</p>
+                   <p className="text-sm font-medium text-white">Shielded report for <span className="text-primary">INC-2025-00{i}</span> verified by SNARK circuit.</p>
+                   <p className="text-xs text-text-secondary opacity-60 font-mono">Proof: 0x{Math.random().toString(16).slice(2, 12)}...</p>
                  </div>
                </div>
              ))}
