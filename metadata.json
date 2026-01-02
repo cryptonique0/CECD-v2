@@ -1,0 +1,7 @@
+{
+  "name": "CECD - Community Emergency Coordination Dashboard",
+  "description": "A high-security blockchain-inspired emergency response platform for real-time community coordination, volunteer management, and incident escalation.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}
