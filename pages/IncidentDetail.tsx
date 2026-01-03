@@ -6,6 +6,7 @@ import { CATEGORY_ICONS, SEVERITY_COLORS, STATUS_COLORS } from '../constants';
 import { initialUsers } from '../mockData';
 import { baseVaultService } from '../services/baseVaultService';
 import { zkService } from '../services/zkService';
+import { notificationService } from '../services/notificationService';
 
 interface IncidentDetailProps {
   incidents: Incident[];
@@ -28,6 +29,7 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incidents, setIncidents
   // ZK Verification State
   const [isVerifyingZk, setIsVerifyingZk] = useState(false);
   const [zkVerificationResult, setZkVerificationResult] = useState<'idle' | 'valid' | 'invalid'>('idle');
+  const [showToast, setShowToast] = useState(false);
   
   const chatEndRef = useRef<HTMLDivElement>(null);
 
@@ -42,6 +44,17 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incidents, setIncidents
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatMessages]);
+
+  // Auto-hide verification results
+  useEffect(() => {
+    if (zkVerificationResult !== 'idle') {
+      const timer = setTimeout(() => {
+        setZkVerificationResult('idle');
+        setShowToast(false);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [zkVerificationResult]);
 
   if (!incident) {
     return <div className="p-10 text-center">Incident not found. <button onClick={() => navigate('/incidents')} className="text-primary hover:underline">Go back</button></div>;
@@ -92,10 +105,30 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incidents, setIncidents
     if (!incident?.zkProof) return;
     setIsVerifyingZk(true);
     setZkVerificationResult('idle');
+    setShowToast(false);
+
     try {
-      // Cryptographic verification call to our ZK Service
       const isValid = await zkService.verifyProof(incident.zkProof);
-      setZkVerificationResult(isValid ? 'valid' : 'invalid');
+      const result = isValid ? 'valid' : 'invalid';
+      setZkVerificationResult(result);
+      
+      if (isValid) {
+        setShowToast(true);
+        // Log to global notifications for visibility
+        notificationService.sendNotification({
+          type: 'system',
+          title: 'ZK Verification Success',
+          message: `Cryptographic proof for ${incident.id} validated on-chain. Integrity confirmed.`,
+          severity: 'info'
+        });
+      } else {
+        notificationService.sendNotification({
+          type: 'system',
+          title: 'ZK Verification Failed',
+          message: `Critical: Integrity check failed for incident ${incident.id}. Potential proof tampering detected.`,
+          severity: 'critical'
+        });
+      }
     } catch (e) {
       setZkVerificationResult('invalid');
     } finally {
@@ -115,6 +148,24 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incidents, setIncidents
 
   return (
     <div className="p-6 md:p-8 flex flex-col gap-6 relative">
+      {/* High-Visibility Verification Toast */}
+      {showToast && (
+        <div className="fixed top-8 right-8 z-[2500] animate-in slide-in-from-right duration-500">
+          <div className="bg-accent-green/90 backdrop-blur-xl border border-white/20 px-6 py-4 rounded-[2rem] shadow-[0_0_30px_rgba(16,185,129,0.4)] flex items-center gap-4 group">
+            <div className="size-10 rounded-full bg-white/20 flex items-center justify-center animate-pulse">
+              <span className="material-symbols-outlined text-white text-xl filled">verified</span>
+            </div>
+            <div className="flex flex-col">
+              <span className="text-white font-black text-xs uppercase tracking-widest italic leading-none">Integrity Verified</span>
+              <span className="text-white/70 text-[10px] uppercase font-bold tracking-tight mt-1">Proof Hash Authenticated</span>
+            </div>
+            <button onClick={() => setShowToast(false)} className="ml-4 opacity-50 hover:opacity-100 transition-opacity">
+              <span className="material-symbols-outlined text-white text-sm">close</span>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Share Incident Modal */}
       {showShareModal && (
         <div className="fixed inset-0 z-[2000] flex items-center justify-center p-6">
@@ -156,18 +207,27 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incidents, setIncidents
         </div>
       )}
 
-      {/* Verification Success/Failure Banner Overlay */}
+      {/* Verification Status Banner Overlay */}
       {zkVerificationResult !== 'idle' && (
-        <div className={`fixed top-24 left-1/2 -translate-x-1/2 z-[1500] px-6 py-3 rounded-full border shadow-2xl animate-in slide-in-from-top-4 duration-500 flex items-center gap-3 backdrop-blur-md ${
-          zkVerificationResult === 'valid' ? 'bg-accent-green/20 border-accent-green/40 text-accent-green' : 'bg-accent-red/20 border-accent-red/40 text-accent-red'
+        <div className={`fixed top-24 left-1/2 -translate-x-1/2 z-[1500] px-8 py-4 rounded-full border shadow-[0_20px_40px_-10px_rgba(0,0,0,0.5)] animate-in slide-in-from-top-4 duration-500 flex items-center gap-4 backdrop-blur-xl ${
+          zkVerificationResult === 'valid' 
+            ? 'bg-accent-green/20 border-accent-green/50 text-accent-green shadow-[0_0_20px_rgba(16,185,129,0.2)]' 
+            : 'bg-accent-red/20 border-accent-red/50 text-accent-red shadow-[0_0_20px_rgba(239,68,68,0.2)]'
         }`}>
-          <span className="material-symbols-outlined filled">
-            {zkVerificationResult === 'valid' ? 'verified' : 'report_problem'}
-          </span>
-          <span className="text-sm font-black uppercase tracking-widest italic">
-            {zkVerificationResult === 'valid' ? 'ZK-Proof Integrity Verified' : 'ZK-Proof Verification Failed'}
-          </span>
-          <button onClick={() => setZkVerificationResult('idle')} className="ml-4 opacity-60 hover:opacity-100">
+          <div className={`size-8 rounded-full flex items-center justify-center ${zkVerificationResult === 'valid' ? 'bg-accent-green/20' : 'bg-accent-red/20'}`}>
+            <span className="material-symbols-outlined filled text-lg">
+              {zkVerificationResult === 'valid' ? 'verified' : 'report_problem'}
+            </span>
+          </div>
+          <div className="flex flex-col">
+            <span className="text-[11px] font-black uppercase tracking-[0.15em] italic">
+              {zkVerificationResult === 'valid' ? 'ZK-Proof Integrity Secured' : 'ZK-Proof Integrity Alert'}
+            </span>
+            <span className="text-[9px] opacity-60 font-bold uppercase tracking-tight">
+              {zkVerificationResult === 'valid' ? 'Cryptographic validation complete' : 'Signature mismatch detected'}
+            </span>
+          </div>
+          <button onClick={() => setZkVerificationResult('idle')} className="ml-6 opacity-40 hover:opacity-100 transition-opacity">
             <span className="material-symbols-outlined text-sm">close</span>
           </button>
         </div>

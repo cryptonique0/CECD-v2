@@ -35,7 +35,7 @@ const Dashboard: React.FC<DashboardProps> = ({ incidents, volunteers = [], curre
   const [riskAreas, setRiskAreas] = useState<any[]>([]);
   const [showHeatmap, setShowHeatmap] = useState(false);
   
-  // Tactical Modal State
+  // Tactical Modal State (Now used for explicit preview actions if needed, or can be removed)
   const [previewIncident, setPreviewIncident] = useState<Incident | null>(null);
 
   // Function to center map to user
@@ -159,10 +159,42 @@ const Dashboard: React.FC<DashboardProps> = ({ incidents, volunteers = [], curre
       const iconName = CATEGORY_ICONS[incident.category] || 'emergency';
       const radius = { [Severity.CRITICAL]: 1000, [Severity.HIGH]: 500, [Severity.MEDIUM]: 250, [Severity.LOW]: 100 }[incident.severity] || 100;
 
+      // Construct Tactical Popup Content
+      const popupContent = `
+        <div class="flex flex-col gap-3 p-1 min-w-[220px]">
+          <div class="flex justify-between items-start gap-4">
+            <h4 class="text-xs font-black text-white uppercase italic tracking-tighter leading-tight">${incident.title}</h4>
+            <span class="text-[8px] font-mono text-primary font-black uppercase tracking-widest bg-primary/10 px-1.5 py-0.5 rounded border border-primary/20 shrink-0">${incident.id}</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="px-1.5 py-0.5 rounded text-[7px] font-black uppercase border tracking-widest ${SEVERITY_COLORS[incident.severity]}">
+              ${incident.severity}
+            </span>
+            <span class="text-[8px] font-bold text-text-secondary uppercase tracking-widest flex items-center gap-1">
+              <span class="material-symbols-outlined text-[12px]">${iconName}</span>
+              ${incident.category}
+            </span>
+          </div>
+          <p class="text-[10px] text-slate-400 italic leading-relaxed border-l-2 border-primary/30 pl-2 line-clamp-3">
+            "${incident.description.length > 90 ? incident.description.substring(0, 87) + '...' : incident.description}"
+          </p>
+          <div class="flex flex-col gap-2 pt-1">
+            <button 
+              onclick="window.location.hash='#/incidents/${incident.id}'"
+              class="w-full py-2.5 bg-primary/10 hover:bg-primary/20 text-primary border border-primary/30 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all shadow-sm flex items-center justify-center gap-2"
+            >
+              <span class="material-symbols-outlined text-[14px]">visibility</span>
+              Access Command Center
+            </button>
+          </div>
+        </div>
+      `;
+
       if (markersRef.current[incident.id]) {
         const marker = markersRef.current[incident.id];
         marker.setLatLng([incident.lat, incident.lng]);
         marker.options.incidentSeverity = incident.severity;
+        marker.setPopupContent(popupContent);
       } else {
         const icon = L.divIcon({
           className: 'incident-marker-container',
@@ -183,12 +215,14 @@ const Dashboard: React.FC<DashboardProps> = ({ incidents, volunteers = [], curre
           incidentSeverity: incident.severity 
         });
 
-        // Add tactical click listener to trigger modal
-        marker.on('click', (e: any) => {
-          L.DomEvent.stopPropagation(e);
-          setPreviewIncident(incident);
+        // Bind tactical popup instead of direct modal trigger
+        marker.bindPopup(popupContent, {
+          className: 'custom-tactical-popup',
+          maxWidth: 280,
+          closeButton: false,
+          offset: L.point(0, -10)
         });
-        
+
         incidentClusterGroupRef.current.addLayer(marker);
         markersRef.current[incident.id] = marker;
       }
@@ -286,7 +320,7 @@ const Dashboard: React.FC<DashboardProps> = ({ incidents, volunteers = [], curre
 
   return (
     <div className="p-6 md:p-8 flex flex-col gap-6 relative h-full overflow-hidden">
-      {/* Tactical Incident Preview Modal */}
+      {/* Tactical Incident Preview Modal (Fallback/Manual Preview) */}
       {previewIncident && (
         <div className="fixed inset-0 z-[2000] flex items-center justify-center p-6">
           <div className="absolute inset-0 bg-background-dark/80 backdrop-blur-md animate-in fade-in duration-300" onClick={() => setPreviewIncident(null)}></div>
