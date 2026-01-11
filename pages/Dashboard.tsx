@@ -511,6 +511,85 @@ const Dashboard: React.FC<DashboardProps> = ({ incidents, volunteers = [], curre
             <button onClick={() => navigate('/incidents')} className="w-full py-4 bg-slate-800 hover:bg-slate-700 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all mt-2">Access Global Ledger</button>
           </div>
 
+          <div className="bg-card-dark border border-border-dark rounded-[3rem] p-6 shadow-xl flex flex-col gap-4 relative overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-emerald-500/10 opacity-60"></div>
+            <div className="relative flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-primary">alt_route</span>
+                <h3 className="text-white text-sm font-black uppercase tracking-widest italic">Predictive Dispatch</h3>
+              </div>
+              <span className="text-[10px] font-black text-text-secondary uppercase tracking-widest">Live</span>
+            </div>
+
+            <div className="relative flex flex-col gap-3 max-h-[360px] overflow-y-auto custom-scrollbar pr-1">
+              {predictiveDispatches.length === 0 && (
+                <div className="p-4 rounded-2xl border border-border-dark bg-background-dark/60 text-text-secondary text-[10px] font-black uppercase tracking-widest text-center">
+                  No eligible responders online. Awaiting location sync.
+                </div>
+              )}
+
+              {predictiveDispatches.map(dispatch => (
+                <div key={dispatch.incidentId + dispatch.volunteerId} className="relative p-4 rounded-2xl border border-border-dark bg-background-dark/70 shadow-inner flex flex-col gap-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex flex-col gap-1">
+                      <div className="flex items-center gap-2">
+                        <span className={`px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-widest border ${dispatch.priority === 'Critical' ? 'bg-accent-red/20 text-accent-red border-accent-red/40' : dispatch.priority === 'High' ? 'bg-accent-orange/20 text-accent-orange border-accent-orange/40' : 'bg-primary/20 text-primary border-primary/40'}`}>{dispatch.priority}</span>
+                        <span className="text-[10px] font-mono text-primary">{dispatch.incidentId}</span>
+                      </div>
+                      <p className="text-white text-sm font-bold leading-tight line-clamp-2">{dispatch.incidentTitle}</p>
+                      <p className="text-[10px] text-text-secondary uppercase font-black flex items-center gap-1">
+                        <span className="material-symbols-outlined text-[14px]">pin_drop</span>
+                        {dispatch.targetLocationName}
+                      </p>
+                    </div>
+                    <div className="flex flex-col items-end gap-1">
+                      <span className="text-[11px] font-black text-white">{dispatch.etaMinutes}m ETA</span>
+                      <span className="text-[10px] font-mono text-text-secondary">{dispatch.distanceKm} km</span>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2 text-[10px] font-black uppercase text-text-secondary">
+                    <span className="px-2 py-1 rounded-lg bg-slate-800/80 border border-border-dark flex items-center gap-1">
+                      <span className="material-symbols-outlined text-[14px]">diversity_3</span>
+                      {dispatch.volunteerName} ({dispatch.volunteerStatus})
+                    </span>
+                    {dispatch.routePlan.riskFactors.map((risk, idx) => (
+                      <span key={idx} className="px-2 py-1 rounded-lg bg-amber-500/10 text-amber-300 border border-amber-500/30">{risk}</span>
+                    ))}
+                  </div>
+
+                  <div className="text-[11px] text-slate-200 leading-snug border-t border-border-dark pt-3 flex flex-col gap-2">
+                    <span className="font-black uppercase tracking-widest text-[9px] text-text-secondary flex items-center gap-1">
+                      <span className="material-symbols-outlined text-[12px]">route</span> Route Brief
+                    </span>
+                    <ul className="list-disc list-inside space-y-1 marker:text-primary">
+                      {dispatch.routePlan.steps.slice(0, 3).map((step, idx) => (
+                        <li key={idx} className="text-[11px] text-slate-300 leading-snug">{step}</li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleCenterToCoords(incidents.find(i => i.id === dispatch.incidentId)?.lat, incidents.find(i => i.id === dispatch.incidentId)?.lng)}
+                      className="flex-1 py-2 rounded-xl bg-primary text-white text-[10px] font-black uppercase tracking-widest shadow-glow active:scale-95 transition-all flex items-center justify-center gap-1"
+                    >
+                      <span className="material-symbols-outlined text-[14px]">map</span>
+                      Focus Incident
+                    </button>
+                    <button
+                      onClick={() => handleCenterToCoords(volunteers.find(v => v.id === dispatch.volunteerId)?.lat, volunteers.find(v => v.id === dispatch.volunteerId)?.lng)}
+                      className="flex-1 py-2 rounded-xl bg-slate-800 text-white text-[10px] font-black uppercase tracking-widest hover:bg-slate-700 transition-all flex items-center justify-center gap-1 border border-border-dark"
+                    >
+                      <span className="material-symbols-outlined text-[14px]">person_pin_circle</span>
+                      Focus Responder
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
           <div className="bg-card-dark border border-border-dark rounded-[3rem] p-6 shadow-xl flex flex-col gap-4 relative overflow-hidden group">
             <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
             <h3 className="text-white text-sm font-black uppercase tracking-widest italic">Base Network</h3>
