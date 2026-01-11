@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { multiSigService } from '../services/multiSigService';
 
@@ -15,6 +14,7 @@ const AdminGovernance: React.FC = () => {
     { label: 'Escalation Threshold', value: '3', unit: 'sigs required', icon: 'verified_user' },
     { label: 'Base Node Status', value: 'Active', unit: '0x39...a21', icon: 'dns', color: 'text-accent-green' },
     { label: 'ZK Prover Load', value: '14%', unit: 'Optimal', icon: 'security', color: 'text-cyan-400' },
+    { label: 'L2 Sequencer', value: 'Healthy', unit: 'Base Mainnet', icon: 'fact_check' },
   ];
 
   return (

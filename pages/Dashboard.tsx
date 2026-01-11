@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Incident, Severity, IncidentStatus, IncidentCategory, User } from '../types';
 import { SEVERITY_COLORS, STATUS_COLORS, CATEGORY_ICONS } from '../constants';

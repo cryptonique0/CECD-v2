@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Incident, User, IncidentStatus, Severity, ChatMessage } from '../types';
@@ -25,12 +24,12 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incidents, setIncidents
   const [donationCurrency, setDonationCurrency] = useState<'ETH' | 'USDC'>('ETH');
   const [showShareModal, setShowShareModal] = useState(false);
   const [copyFeedback, setCopyFeedback] = useState(false);
-  
+
   // ZK Verification State
   const [isVerifyingZk, setIsVerifyingZk] = useState(false);
   const [zkVerificationResult, setZkVerificationResult] = useState<'idle' | 'valid' | 'invalid'>('idle');
   const [showToast, setShowToast] = useState(false);
-  
+
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {

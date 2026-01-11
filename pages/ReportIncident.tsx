@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Incident, IncidentCategory, Severity, IncidentStatus, User } from '../types';
@@ -20,7 +19,7 @@ const ReportIncident: React.FC<ReportIncidentProps> = ({ onSubmit, currentUser, 
   const [isZkLoading, setIsZkLoading] = useState(false);
   const [aiResult, setAiResult] = useState<PredictionResult | null>(null);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
-  
+
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -278,6 +277,23 @@ const ReportIncident: React.FC<ReportIncidentProps> = ({ onSubmit, currentUser, 
                     <div className="flex flex-col gap-2">
                       <span className="text-[9px] font-black text-text-secondary uppercase tracking-widest">Assessment Detail</span>
                       <p className="text-xs text-slate-300 leading-relaxed italic">"{aiResult.reasoning}"</p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="flex flex-col gap-1">
+                        <span className="text-[9px] font-black text-text-secondary uppercase">Tactical Category</span>
+                        <div className="flex items-center gap-2 text-white font-bold">
+                          <span className="material-symbols-outlined text-primary text-base">
+                            {CATEGORY_ICONS[Object.values(IncidentCategory).find(c => c.toLowerCase() === aiResult.category.toLowerCase()) as IncidentCategory] || 'category'}
+                          </span>
+                          {aiResult.category}
+                        </div>
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <span className="text-[9px] font-black text-text-secondary uppercase">Severity Index</span>
+                        <span className={`text-xs font-black px-2 py-0.5 rounded border w-fit ${SEVERITY_COLORS[Object.values(Severity).find(s => s.toLowerCase() === aiResult.severity.toLowerCase()) as Severity] || 'border-border-dark'}`}>
+                          {aiResult.severity}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>

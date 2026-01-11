@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 import { aiService } from '../services/aiService';
@@ -54,7 +53,7 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ incidents, isWhisperActive = 
 
     const userMsg = input.trim();
     setInput('');
-    
+
     // UI update for user message
     setMessages(prev => [...prev, { role: 'user', text: userMsg }]);
     setIsTyping(true);

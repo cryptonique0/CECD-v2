@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 
 interface LoginProps {
@@ -117,8 +116,8 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           </div>
         </div>
 
-        <p className="text-center text-[10px] text-text-secondary/40 leading-relaxed uppercase font-black tracking-widest px-12 italic">
-          Encryption Protocol: 4-Alpha AES-256 Secured.
+        <p className="text-center text-[10px] text-text-secondary/40 leading-relaxed uppercase font-black tracking-widest px-12">
+          By connecting, you agree to the immutable ledger policies of the CECD Global Emergency Network.
         </p>
       </div>
 
@@ -126,14 +125,14 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
       {showWalletModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
           <div className="absolute inset-0 bg-background-dark/80 backdrop-blur-sm" onClick={() => setShowWalletModal(false)}></div>
-          <div className="bg-card-dark border border-border-dark w-full max-w-xs rounded-[3rem] shadow-2xl relative z-10 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+          <div className="bg-card-dark border border-border-dark w-full max-sm rounded-[3rem] shadow-2xl relative z-10 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             <div className="px-8 py-6 border-b border-border-dark flex justify-between items-center bg-slate-900/50">
-              <h3 className="text-[11px] font-black text-white uppercase tracking-widest italic">Tactical Provider</h3>
-              <button onClick={() => setShowWalletModal(false)} className="size-8 rounded-full hover:bg-white/5 transition-colors flex items-center justify-center border border-border-dark">
-                <span className="material-symbols-outlined text-xs flex items-center justify-center">close</span>
+              <h3 className="text-sm font-black text-white uppercase tracking-widest italic">Tactical Provider</h3>
+              <button onClick={() => setShowWalletModal(false)} className="size-8 rounded-full hover:bg-white/5 transition-colors flex items-center justify-center">
+                <span className="material-symbols-outlined">close</span>
               </button>
             </div>
-            <div className="p-4 flex flex-col gap-1">
+            <div className="p-4 flex flex-col gap-2">
               {wallets.map((wallet) => (
                 <button 
                   key={wallet.name}
@@ -141,17 +140,20 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                   className="flex items-center justify-between p-4 rounded-3xl hover:bg-primary/10 border border-transparent hover:border-primary/20 transition-all group"
                 >
                   <div className="flex items-center gap-4">
-                    <div className={`size-12 rounded-2xl bg-slate-800 flex items-center justify-center ${wallet.color} group-hover:scale-110 transition-transform shadow-inner overflow-hidden`}>
-                      <span className="material-symbols-outlined text-2xl filled flex items-center justify-center">{wallet.icon}</span>
+                    <div className={`size-14 rounded-2xl bg-slate-800 flex items-center justify-center ${wallet.color} group-hover:scale-110 transition-transform shadow-inner`}>
+                      <span className="material-symbols-outlined text-4xl filled">{wallet.icon}</span>
                     </div>
                     <div className="flex flex-col items-start">
-                      <span className="text-xs font-black text-white uppercase italic">{wallet.name}</span>
-                      <span className="text-[9px] text-text-secondary font-black uppercase tracking-tight opacity-40">{wallet.desc.split(' ')[0]}</span>
+                      <span className="text-sm font-black text-white">{wallet.name}</span>
+                      <span className="text-[10px] text-text-secondary font-bold uppercase tracking-tight opacity-60">{wallet.desc}</span>
                     </div>
                   </div>
-                  <span className="material-symbols-outlined text-text-secondary opacity-0 group-hover:opacity-100 transition-opacity translate-x-[-10px] group-hover:translate-x-0 flex items-center justify-center text-sm">chevron_right</span>
+                  <span className="material-symbols-outlined text-text-secondary opacity-0 group-hover:opacity-100 transition-opacity translate-x-[-10px] group-hover:translate-x-0">chevron_right</span>
                 </button>
               ))}
+            </div>
+            <div className="p-6 bg-slate-900/50 text-center border-t border-border-dark">
+              <p className="text-[10px] text-text-secondary font-bold uppercase tracking-widest">Connected to Base Mainnet v2.5</p>
             </div>
           </div>
         </div>

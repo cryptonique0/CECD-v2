@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
@@ -24,7 +23,7 @@ const App: React.FC = () => {
   const [incidents, setIncidents] = useState<Incident[]>(initialIncidents);
   const [volunteers, setVolunteers] = useState<User[]>(initialUsers);
   const [globalWhisperMode, setGlobalWhisperMode] = useState(false);
-  
+
   const lastResolvedCoords = useRef<{lat: number, lng: number} | null>(null);
   const currentUserIdRef = useRef<string>(currentUser.id);
 
@@ -68,11 +67,6 @@ const App: React.FC = () => {
         },
         (error) => {
           console.warn("[GEO-WATCH] Access Denied or Error:", error.message);
-        },
-        {
-          enableHighAccuracy: true,
-          maximumAge: 0,
-          timeout: 15000
         }
       );
     }
@@ -100,6 +94,7 @@ const App: React.FC = () => {
     setWalletAddress(address);
     setWalletProvider(provider);
     setIsAuthenticated(true);
+    // Link the mock user to the connected wallet address for consistency
     setCurrentUser(prev => ({ ...prev, walletAddress: address }));
   };
 
@@ -107,9 +102,13 @@ const App: React.FC = () => {
     setVolunteers(prev => prev.map(u => {
       if (u.id === userId) {
         const updated = { ...u, status: newStatus };
+        
+        // If we are deploying another user, we track them as "Busy"
+        // If we are deploying ourselves, the watchPosition effect handles the coords
         if (userId === currentUser.id) {
           setCurrentUser(prevUser => ({ ...prevUser, status: newStatus }));
         }
+        
         return updated;
       }
       return u;
@@ -140,7 +139,7 @@ const App: React.FC = () => {
               <Route path="/" element={<Dashboard incidents={incidents} volunteers={volunteers} currentUser={currentUser} />} />
               <Route path="/incidents" element={<Incidents incidents={incidents} />} />
               <Route path="/incidents/:id" element={<IncidentDetail incidents={incidents} setIncidents={setIncidents} currentUser={currentUser} />} />
-              <Route path="/report" element={<ReportIncident onSubmit={addIncident} currentUser={currentUser} isWhisperMode={globalWhisperMode} setIsWhisperMode={setGlobalWhisperMode} />} />
+              <Route path="/report" element={<ReportIncident onSubmit={addIncident} currentUser={currentUser} />} />
               <Route path="/volunteers" element={<Volunteers volunteers={volunteers} onUpdateStatus={updateVolunteerStatus} onAddVolunteer={addVolunteer} />} />
               <Route path="/admin" element={<AdminGovernance />} />
               <Route path="/profile" element={<Profile user={currentUser} />} />
@@ -150,7 +149,7 @@ const App: React.FC = () => {
           </div>
         </main>
         
-        <AiAssistant incidents={incidents} isWhisperActive={globalWhisperMode} />
+        <AiAssistant />
       </div>
     </Router>
   );
