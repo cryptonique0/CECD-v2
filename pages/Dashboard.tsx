@@ -37,6 +37,12 @@ const Dashboard: React.FC<DashboardProps> = ({ incidents, volunteers = [], curre
   
   const [riskAreas, setRiskAreas] = useState<any[]>([]);
   const [showHeatmap, setShowHeatmap] = useState(false);
+  const [readiness, setReadiness] = useState<Array<{ region: string; avgResponseMins: number; closureRate: number; skillGaps: string[]; readinessScore: number }>>([]);
+  const [anomalies, setAnomalies] = useState<Array<{ incidentId: string; region: string; suspicionScore: number; reason: string }>>([]);
+  const [drillRegion, setDrillRegion] = useState<string>('New York, USA');
+  const [drillScenario, setDrillScenario] = useState<IncidentCategory>(IncidentCategory.FIRE);
+  const [drillCount, setDrillCount] = useState<number>(3);
+  const [drillIncidents, setDrillIncidents] = useState<Incident[]>([]);
   const predictiveDispatches = useMemo<DispatchSuggestion[]>(() => buildPredictiveDispatches(incidents, volunteers), [incidents, volunteers]);
   const [visibleLayers, setVisibleLayers] = useState<{ weather: boolean; flood: boolean; aqi: boolean; roads: boolean; shelters: boolean; hospitals: boolean }>({ weather: false, flood: false, aqi: false, roads: false, shelters: false, hospitals: false });
   const [layerStatus, setLayerStatus] = useState<{ [K in keyof typeof visibleLayers]?: 'live' | 'simulated' }>(() => ({ }));
@@ -374,6 +380,21 @@ const Dashboard: React.FC<DashboardProps> = ({ incidents, volunteers = [], curre
     analyticsService.getRiskHeatmap().then(setRiskAreas);
   }, []);
 
+  // Readiness by Region & Anomaly Detection
+  useEffect(() => {
+    try {
+      const r = analyticsService.getReadinessByRegion(incidents, volunteers);
+      setReadiness(r);
+    } catch {}
+  }, [incidents, volunteers]);
+
+  useEffect(() => {
+    try {
+      const a = analyticsService.detectAnomalies(incidents, volunteers);
+      setAnomalies(a);
+    } catch {}
+  }, [incidents, volunteers]);
+
   // 6. Situational Layers Toggle Logic
   const toggleLayer = async (key: keyof typeof visibleLayers) => {
     if (!mapRef.current) return;
@@ -467,6 +488,12 @@ const Dashboard: React.FC<DashboardProps> = ({ incidents, volunteers = [], curre
     }
   };
 
+  const runDrill = () => {
+    const sims = analyticsService.simulateDrills(drillRegion, drillScenario, drillCount);
+    setDrillIncidents(sims);
+    alert(`Simulated ${sims.length} drill incidents for ${drillRegion}`);
+  };
+
   const stats = [
     { label: 'Active Alerts', value: incidents.filter(i => i.status !== IncidentStatus.CLOSED).length, trend: '+2h', color: 'primary', icon: 'campaign' },
     { label: 'Global Responders', value: volunteers.length + 2440, trend: '+12%', color: 'accent-green', icon: 'groups' },
@@ -552,6 +579,62 @@ const Dashboard: React.FC<DashboardProps> = ({ incidents, volunteers = [], curre
           ))}
         </div>
       </div>
+
+      {/* Readiness by Region */}
+      <section className="bg-card-dark rounded-2xl border border-border-dark p-6">
+        <div className="flex items-center gap-2 mb-3">
+          <span className="material-symbols-outlined text-emerald-400">speed</span>
+          <h3 className="text-lg font-bold text-white uppercase tracking-tight">Readiness by Region</h3>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {readiness.map(r => (
+            <div key={r.region} className="p-4 rounded-xl bg-background-dark border border-border-dark">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-bold text-white">{r.region}</p>
+                <span className="px-2 py-0.5 rounded-lg text-[10px] font-black uppercase border bg-emerald-500/10 text-emerald-300 border-emerald-500/30">{Math.round(r.readinessScore * 100)}%</span>
+              </div>
+              <div className="mt-2 text-[10px] text-text-secondary">
+                <p>Avg Response: <span className="font-bold text-white">{r.avgResponseMins.toFixed(1)}m</span></p>
+                <p>Closure Rate: <span className="font-bold text-white">{Math.round(r.closureRate * 100)}%</span></p>
+              </div>
+              {r.skillGaps.length > 0 ? (
+                <div className="mt-2">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-amber-300">Skill Gaps</p>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {r.skillGaps.slice(0,5).map(g => (
+                      <span key={g} className="px-2 py-0.5 rounded-lg bg-amber-500/10 text-amber-300 text-[10px] border border-amber-500/30">{g}</span>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <p className="mt-2 text-[10px] text-emerald-300">No gaps</p>
+              )}
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Anomaly Detection */}
+      {anomalies.length > 0 && (
+        <section className="bg-card-dark rounded-2xl border border-border-dark p-6">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="material-symbols-outlined text-red-400">bug_report</span>
+            <h3 className="text-lg font-bold text-white uppercase tracking-tight">Anomaly Detection</h3>
+          </div>
+          <div className="flex flex-col gap-2">
+            {anomalies.map(a => (
+              <div key={a.incidentId} className="p-3 rounded-xl bg-red-500/5 border border-red-500/30 text-[10px]">
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-red-400 text-sm">report</span>
+                  <span className="text-white font-bold">{a.incidentId}</span>
+                  <span className="ml-auto text-red-300">Score {Math.round(a.suspicionScore * 100)}%</span>
+                </div>
+                <p className="text-text-secondary mt-1">{a.reason} • {a.region}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       <div className="flex-1 min-h-0 relative flex flex-col xl:flex-row gap-6">
         <div className="flex-1 rounded-[3rem] border border-border-dark bg-slate-900 overflow-hidden relative shadow-2xl">
@@ -803,6 +886,48 @@ const Dashboard: React.FC<DashboardProps> = ({ incidents, volunteers = [], curre
               ))}
             </div>
           </div>
+          {/* Drills Simulation */}
+          <section className="bg-card-dark border border-border-dark rounded-[3rem] p-6 shadow-xl flex flex-col gap-4 relative overflow-hidden">
+            <div className="relative flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-primary">psychology</span>
+                <h3 className="text-white text-sm font-black uppercase tracking-widest italic">Readiness Drills</h3>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
+              <div className="flex flex-col gap-1">
+                <label className="text-[10px] font-black text-text-secondary uppercase tracking-widest">Region</label>
+                <select value={drillRegion} onChange={e => setDrillRegion(e.target.value)} className="bg-background-dark border border-border-dark rounded-lg px-3 py-2 text-sm text-white">
+                  {Object.keys(LOCATION_COORDS).map(loc => <option key={loc} value={loc}>{loc}</option>)}
+                </select>
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-[10px] font-black text-text-secondary uppercase tracking-widest">Scenario</label>
+                <select value={drillScenario} onChange={e => setDrillScenario(e.target.value as any)} className="bg-background-dark border border-border-dark rounded-lg px-3 py-2 text-sm text-white">
+                  {Object.values(IncidentCategory).map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                </select>
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-[10px] font-black text-text-secondary uppercase tracking-widest">Count</label>
+                <input type="number" min={1} max={10} value={drillCount} onChange={e => setDrillCount(parseInt(e.target.value || '1'))} className="bg-background-dark border border-border-dark rounded-lg px-3 py-2 text-sm text-white" />
+              </div>
+              <button onClick={runDrill} className="px-4 py-2 rounded-lg bg-primary text-white text-[10px] font-black uppercase tracking-widest hover:bg-primary-dark transition-all">Run Drill</button>
+            </div>
+            {drillIncidents.length > 0 && (
+              <div className="mt-4 p-3 rounded-xl bg-background-dark border border-border-dark">
+                <p className="text-[10px] font-black text-text-secondary uppercase tracking-widest mb-2">Simulated Incidents</p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  {drillIncidents.map(di => (
+                    <div key={di.id} className="p-3 rounded-lg bg-slate-900 border border-border-dark">
+                      <p className="text-[11px] font-bold text-white">{di.title}</p>
+                      <p className="text-[10px] text-text-secondary">{di.category} • {di.severity}</p>
+                      <p className="text-[9px] text-text-secondary">{new Date(di.timestamp).toLocaleString()} • {di.locationName}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </section>
 
           <div className="bg-card-dark border border-border-dark rounded-[3rem] p-6 shadow-xl flex flex-col gap-4 relative overflow-hidden group">
             <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
