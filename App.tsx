@@ -14,6 +14,7 @@ import AiAssistant from './components/AiAssistant';
 import { Incident, User, Role } from './types';
 import { initialUsers, initialIncidents } from './mockData';
 import { aiService } from './services/aiService';
+import { offlineService } from './services/offlineService';
 
 const App: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -75,6 +76,18 @@ const App: React.FC = () => {
       if (watchId) navigator.geolocation.clearWatch(watchId);
     };
   }, [isAuthenticated]);
+
+  // Initialize offline queue and set sync handler
+  useEffect(() => {
+    offlineService.init();
+    offlineService.setSyncHandler(async (item) => {
+      if (item.type === 'incident') {
+        const synced = item.data as Incident;
+        setIncidents(prev => prev.map(i => i.id === synced.id ? { ...synced, pendingSync: false } : i));
+      }
+    });
+    if (offlineService.isOnline) offlineService.syncQueue();
+  }, []);
 
   const addIncident = (newIncident: Incident) => {
     setIncidents(prev => [newIncident, ...prev]);

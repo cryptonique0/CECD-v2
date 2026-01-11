@@ -4,6 +4,7 @@ import { Incident, IncidentCategory, Severity, IncidentStatus, User } from '../t
 import { CATEGORY_ICONS, SEVERITY_COLORS } from '../constants';
 import { aiService, PredictionResult } from '../services/aiService';
 import { zkService } from '../services/zkService';
+import { offlineService } from '../services/offlineService';
 
 interface ReportIncidentProps {
   onSubmit: (incident: Incident) => void;
@@ -122,9 +123,16 @@ const ReportIncident: React.FC<ReportIncidentProps> = ({ onSubmit, currentUser, 
       hash: '0x' + Math.random().toString(16).slice(2, 66).padEnd(64, '0'),
       confidenceScore: aiResult?.confidence || 0.5,
       isWhisperMode: isWhisperMode,
-      zkProof: zkProof
+      zkProof: zkProof,
+      pendingSync: !offlineService.isOnline
     };
     onSubmit(newIncident);
+
+    // If offline, queue for later sync and inform user
+    const wasOnline = await offlineService.queueAction('incident', newIncident);
+    if (!wasOnline) {
+      alert('Stored offline. Will auto-sync when back online.');
+    }
     navigate('/incidents');
   };
 
