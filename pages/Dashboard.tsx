@@ -39,6 +39,7 @@ const Dashboard: React.FC<DashboardProps> = ({ incidents, volunteers = [], curre
   const [showHeatmap, setShowHeatmap] = useState(false);
   const predictiveDispatches = useMemo<DispatchSuggestion[]>(() => buildPredictiveDispatches(incidents, volunteers), [incidents, volunteers]);
   const [visibleLayers, setVisibleLayers] = useState<{ weather: boolean; flood: boolean; aqi: boolean; roads: boolean; shelters: boolean; hospitals: boolean }>({ weather: false, flood: false, aqi: false, roads: false, shelters: false, hospitals: false });
+  const [layerStatus, setLayerStatus] = useState<{ [K in keyof typeof visibleLayers]?: 'live' | 'simulated' }>(() => ({ }));
   
   // Tactical Modal State (Now used for explicit preview actions if needed, or can be removed)
   const [previewIncident, setPreviewIncident] = useState<Incident | null>(null);
@@ -353,20 +354,25 @@ const Dashboard: React.FC<DashboardProps> = ({ incidents, volunteers = [], curre
       if (key === 'weather') {
         try {
           layers = liveHazardsService.addNOAARadarWMS(mapRef.current, L);
+          setLayerStatus(prev => ({ ...prev, weather: 'live' }));
         } catch {
           layers = hazardLayersService.addWeatherRadar(mapRef.current, L, currentUser?.lat && currentUser?.lng ? { lat: currentUser.lat!, lng: currentUser.lng! } : undefined);
+          setLayerStatus(prev => ({ ...prev, weather: 'simulated' }));
         }
       } else if (key === 'flood') {
         const floodUrl = import.meta?.env?.VITE_FLOOD_GEOJSON_URL as string | undefined;
         try {
           layers = await liveHazardsService.addFloodGeoJSON(mapRef.current, L, floodUrl);
+          setLayerStatus(prev => ({ ...prev, flood: 'live' }));
         } catch {
           layers = hazardLayersService.addFloodZones(mapRef.current, L, currentUser?.lat && currentUser?.lng ? { lat: currentUser.lat!, lng: currentUser.lng! } : undefined);
+          setLayerStatus(prev => ({ ...prev, flood: 'simulated' }));
         }
       } else if (key === 'aqi') {
         const token = import.meta?.env?.VITE_WAQI_TOKEN as string | undefined;
         try {
           layers = await liveHazardsService.addWAQI(mapRef.current, L, currentUser?.lat && currentUser?.lng ? { lat: currentUser.lat!, lng: currentUser.lng! } : undefined, token);
+          setLayerStatus(prev => ({ ...prev, aqi: 'live' }));
         } catch {
           const cities = [
             { name: 'New York', lat: 40.7128, lng: -74.0060, aqi: 65 + Math.floor(Math.random() * 100) },
@@ -374,32 +380,39 @@ const Dashboard: React.FC<DashboardProps> = ({ incidents, volunteers = [], curre
             { name: 'Beijing', lat: 39.9042, lng: 116.4074, aqi: 80 + Math.floor(Math.random() * 150) }
           ];
           layers = hazardLayersService.addAQI(mapRef.current, L, cities);
+          setLayerStatus(prev => ({ ...prev, aqi: 'simulated' }));
         }
       } else if (key === 'roads') {
         try {
           layers = await liveHazardsService.addRoadClosuresOverpass(mapRef.current, L, currentUser?.lat && currentUser?.lng ? { lat: currentUser.lat!, lng: currentUser.lng! } : undefined);
+          setLayerStatus(prev => ({ ...prev, roads: 'live' }));
         } catch {
           layers = hazardLayersService.addRoadClosures(mapRef.current, L, incidents);
+          setLayerStatus(prev => ({ ...prev, roads: 'simulated' }));
         }
       } else if (key === 'shelters') {
         try {
           layers = await liveHazardsService.addOSMShelters(mapRef.current, L, currentUser?.lat && currentUser?.lng ? { lat: currentUser.lat!, lng: currentUser.lng! } : undefined);
+          setLayerStatus(prev => ({ ...prev, shelters: 'live' }));
         } catch {
           const anchors = [
             { name: 'Community Shelter A', lat: (currentUser?.lat ?? 20) + 0.12, lng: (currentUser?.lng ?? 0) - 0.08, capacity: 120 },
             { name: 'Relief Center B', lat: (currentUser?.lat ?? 20) - 0.22, lng: (currentUser?.lng ?? 0) + 0.14, capacity: 60 }
           ];
           layers = hazardLayersService.addShelters(mapRef.current, L, anchors);
+          setLayerStatus(prev => ({ ...prev, shelters: 'simulated' }));
         }
       } else if (key === 'hospitals') {
         try {
           layers = await liveHazardsService.addOSMHospitals(mapRef.current, L, currentUser?.lat && currentUser?.lng ? { lat: currentUser.lat!, lng: currentUser.lng! } : undefined);
+          setLayerStatus(prev => ({ ...prev, hospitals: 'live' }));
         } catch {
           const anchors = [
             { name: 'General Hospital', lat: (currentUser?.lat ?? 20) + 0.05, lng: (currentUser?.lng ?? 0) + 0.09, beds: 25 },
             { name: 'Trauma Center', lat: (currentUser?.lat ?? 20) - 0.1, lng: (currentUser?.lng ?? 0) - 0.12, beds: 12 }
           ];
           layers = hazardLayersService.addHospitals(mapRef.current, L, anchors);
+          setLayerStatus(prev => ({ ...prev, hospitals: 'simulated' }));
         }
       }
       situationalLayersRef.current[key] = layers;
@@ -587,7 +600,7 @@ const Dashboard: React.FC<DashboardProps> = ({ incidents, volunteers = [], curre
               <span className="text-[9px] text-text-secondary uppercase font-bold">Role: {currentUser?.role}</span>
             </div>
             <div className="grid grid-cols-2 gap-2">
-              {([
+              {([ 
                 { key: 'weather', label: 'Weather Radar', icon: 'radar' },
                 { key: 'flood', label: 'Flood Zones', icon: 'water' },
                 { key: 'aqi', label: 'Air Quality', icon: 'air' },
@@ -601,7 +614,14 @@ const Dashboard: React.FC<DashboardProps> = ({ incidents, volunteers = [], curre
                   className={`flex items-center gap-2 px-3 py-2 rounded-xl text-[10px] font-bold uppercase border transition-all ${visibleLayers[item.key] ? 'bg-primary/10 border-primary/30 text-white' : 'bg-slate-800 border-border-dark text-white/60 hover:text-white'}`}
                 >
                   <span className="material-symbols-outlined text-[14px]">{item.icon}</span>
-                  {item.label}
+                  <span className="flex items-center gap-1">
+                    {item.label}
+                    {visibleLayers[item.key] && (
+                      <span className={`ml-1 px-1.5 py-0.5 rounded text-[8px] font-black uppercase border ${layerStatus[item.key] === 'live' ? 'bg-emerald-500/10 text-accent-green border-emerald-500/40' : 'bg-slate-700 text-white/80 border-slate-500/40'}`}>
+                        {layerStatus[item.key] === 'live' ? 'Live' : 'Sim'}
+                      </span>
+                    )}
+                  </span>
                 </button>
               ))}
             </div>

@@ -10,6 +10,14 @@
 
 export type LeafletLayer = any;
 
+type CacheEntry<T> = { data: T; ts: number };
+const FIVE_MIN = 5 * 60 * 1000;
+const TEN_MIN = 10 * 60 * 1000;
+
+const aqiCache: Record<string, CacheEntry<number>> = {};
+const overpassCache: Record<string, CacheEntry<any>> = {};
+const floodCache: Record<string, CacheEntry<any>> = {};
+
 function bboxFromCenter(lat: number, lng: number, delta = 0.2) {
   return `${lat - delta},${lng - delta},${lat + delta},${lng + delta}`;
 }
@@ -27,9 +35,16 @@ export const liveHazardsService = {
 
   async addFloodGeoJSON(map: any, L: any, url?: string): Promise<LeafletLayer[]> {
     if (!url) throw new Error('Missing flood GeoJSON URL');
-    const res = await fetch(url);
-    if (!res.ok) throw new Error('Flood GeoJSON fetch failed');
-    const data = await res.json();
+    const cached = floodCache[url];
+    let data: any;
+    if (cached && Date.now() - cached.ts < TEN_MIN) {
+      data = cached.data;
+    } else {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('Flood GeoJSON fetch failed');
+      data = await res.json();
+      floodCache[url] = { data, ts: Date.now() };
+    }
     const layer = L.geoJSON(data, {
       style: {
         color: '#0ea5e9',
@@ -43,11 +58,19 @@ export const liveHazardsService = {
 
   async addWAQI(map: any, L: any, center?: { lat: number; lng: number }, token?: string): Promise<LeafletLayer[]> {
     if (!center || !token) throw new Error('Missing WAQI center or token');
-    const url = `https://api.waqi.info/feed/geo:${center.lat};${center.lng}/?token=${token}`;
-    const res = await fetch(url);
-    if (!res.ok) throw new Error('WAQI fetch failed');
-    const json = await res.json();
-    const aqi = json?.data?.aqi ?? 50;
+    const key = `${center.lat.toFixed(3)},${center.lng.toFixed(3)}`;
+    let aqi: number | undefined;
+    const cached = aqiCache[key];
+    if (cached && Date.now() - cached.ts < FIVE_MIN) {
+      aqi = cached.data;
+    } else {
+      const url = `https://api.waqi.info/feed/geo:${center.lat};${center.lng}/?token=${token}`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('WAQI fetch failed');
+      const json = await res.json();
+      aqi = json?.data?.aqi ?? 50;
+      aqiCache[key] = { data: aqi, ts: Date.now() };
+    }
     const color = aqi > 150 ? '#ef4444' : aqi > 80 ? '#f59e0b' : '#10b981';
     const circle = L.circle([center.lat, center.lng], { radius: 40000 + (aqi * 200), color: 'transparent', fillColor: color, fillOpacity: 0.25 }).addTo(map);
     const label = L.marker([center.lat, center.lng], { icon: L.divIcon({ className: 'aqi-label', html: `<div class=\"px-2 py-1 rounded bg-slate-800 border border-white/10 text-white text-[10px] font-bold\">AQI ${aqi}</div>` }) }).addTo(map);
@@ -58,9 +81,17 @@ export const liveHazardsService = {
     if (!center) throw new Error('Missing center for Overpass');
     const bbox = bboxFromCenter(center.lat, center.lng, 0.15);
     const query = `data=[out:json];way[\"highway\"=\"construction\"](${bbox});out body;>;out skel qt;`;
-    const res = await fetch('https://overpass-api.de/api/interpreter', { method: 'POST', body: query, headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
-    if (!res.ok) throw new Error('Overpass road closures fetch failed');
-    const data = await res.json();
+    const cacheKey = `roads:${bbox}`;
+    let data: any;
+    const cached = overpassCache[cacheKey];
+    if (cached && Date.now() - cached.ts < FIVE_MIN) {
+      data = cached.data;
+    } else {
+      const res = await fetch('https://overpass-api.de/api/interpreter', { method: 'POST', body: query, headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
+      if (!res.ok) throw new Error('Overpass road closures fetch failed');
+      data = await res.json();
+      overpassCache[cacheKey] = { data, ts: Date.now() };
+    }
     const nodes: Record<number, [number, number]> = {};
     data.elements.filter((e: any) => e.type === 'node').forEach((n: any) => { nodes[n.id] = [n.lat, n.lon]; });
     const layers: LeafletLayer[] = [];
@@ -78,9 +109,17 @@ export const liveHazardsService = {
     if (!center) throw new Error('Missing center for Overpass');
     const bbox = bboxFromCenter(center.lat, center.lng, 0.2);
     const query = `data=[out:json];node[\"amenity\"=\"shelter\"](${bbox});out;`;
-    const res = await fetch('https://overpass-api.de/api/interpreter', { method: 'POST', body: query, headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
-    if (!res.ok) throw new Error('Overpass shelters fetch failed');
-    const data = await res.json();
+    const cacheKey = `shelters:${bbox}`;
+    let data: any;
+    const cached = overpassCache[cacheKey];
+    if (cached && Date.now() - cached.ts < TEN_MIN) {
+      data = cached.data;
+    } else {
+      const res = await fetch('https://overpass-api.de/api/interpreter', { method: 'POST', body: query, headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
+      if (!res.ok) throw new Error('Overpass shelters fetch failed');
+      data = await res.json();
+      overpassCache[cacheKey] = { data, ts: Date.now() };
+    }
     const layers: LeafletLayer[] = [];
     data.elements.filter((e: any) => e.type === 'node').forEach((n: any) => {
       const icon = L.divIcon({ className: 'shelter-marker', html: `<div class=\"px-2 py-1 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-[10px] font-black flex items-center gap-1\"><span class=\"material-symbols-outlined text-[12px]\">home</span>${n.tags?.name || 'Shelter'}</div>` });
@@ -95,9 +134,17 @@ export const liveHazardsService = {
     if (!center) throw new Error('Missing center for Overpass');
     const bbox = bboxFromCenter(center.lat, center.lng, 0.2);
     const query = `data=[out:json];node[\"amenity\"=\"hospital\"](${bbox});out;`;
-    const res = await fetch('https://overpass-api.de/api/interpreter', { method: 'POST', body: query, headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
-    if (!res.ok) throw new Error('Overpass hospitals fetch failed');
-    const data = await res.json();
+    const cacheKey = `hospitals:${bbox}`;
+    let data: any;
+    const cached = overpassCache[cacheKey];
+    if (cached && Date.now() - cached.ts < TEN_MIN) {
+      data = cached.data;
+    } else {
+      const res = await fetch('https://overpass-api.de/api/interpreter', { method: 'POST', body: query, headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
+      if (!res.ok) throw new Error('Overpass hospitals fetch failed');
+      data = await res.json();
+      overpassCache[cacheKey] = { data, ts: Date.now() };
+    }
     const layers: LeafletLayer[] = [];
     data.elements.filter((e: any) => e.type === 'node').forEach((n: any) => {
       const icon = L.divIcon({ className: 'hospital-marker', html: `<div class=\"px-2 py-1 rounded-xl bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 text-[10px] font-black flex items-center gap-1\"><span class=\"material-symbols-outlined text-[12px]\">local_hospital</span>${n.tags?.name || 'Hospital'}</div>` });
