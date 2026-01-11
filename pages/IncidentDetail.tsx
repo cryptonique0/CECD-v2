@@ -7,6 +7,7 @@ import { baseVaultService } from '../services/baseVaultService';
 import { zkService } from '../services/zkService';
 import { notificationService } from '../services/notificationService';
 import { playbookService } from '../services/playbookService';
+import { volunteerOptimizationService, SuggestedSquad, HandoffSuggestion } from '../services/volunteerOptimizationService';
 
 interface IncidentDetailProps {
   incidents: Incident[];
@@ -33,6 +34,10 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incidents, setIncidents
   const [isVerifyingZk, setIsVerifyingZk] = useState(false);
   const [zkVerificationResult, setZkVerificationResult] = useState<'idle' | 'valid' | 'invalid'>('idle');
   const [showToast, setShowToast] = useState(false);
+  
+  // Volunteer optimization state
+  const [suggestedSquads, setSuggestedSquads] = useState<SuggestedSquad[]>([]);
+  const [handoffSuggestions, setHandoffSuggestions] = useState<HandoffSuggestion[]>([]);
 
   const chatEndRef = useRef<HTMLDivElement>(null);
 
@@ -44,6 +49,20 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incidents, setIncidents
     ]);
 
     setPlaybook(playbookService.generatePlaybook(incident, volunteers));
+    
+    // Generate suggested squads and handoffs
+    const squads = volunteerOptimizationService.suggestSquads(incident, volunteers);
+    setSuggestedSquads(squads);
+    
+    const assignedResponders = volunteers.filter(v => incident.assignedResponders.includes(v.id));
+    const unassignedIncidents = []; // In a real app, fetch other incidents not yet covered
+    const handoffs = volunteerOptimizationService.suggestHandoffs(
+      assignedResponders.length > 0 ? [incident] : [],
+      assignedResponders[0] || volunteers[0],
+      unassignedIncidents,
+      volunteers
+    );
+    setHandoffSuggestions(handoffs);
   }, [incident, volunteers]);
 
   useEffect(() => {
@@ -486,6 +505,127 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incidents, setIncidents
                     </div>
                   );
                 })}
+              </div>
+            </section>
+          )}
+
+          {suggestedSquads.length > 0 && (
+            <section className="bg-card-dark rounded-2xl border border-border-dark p-6 flex flex-col gap-5">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-blue-400">groups</span>
+                  <div className="flex flex-col">
+                    <h3 className="text-lg font-bold text-white uppercase tracking-tight">Suggested Response Squads</h3>
+                    <p className="text-[10px] text-text-secondary font-black uppercase tracking-widest">Skill-matched teams ranked by composite score (skill, proximity, availability, trust)</p>
+                  </div>
+                </div>
+                <span className="px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest bg-blue-500/10 text-blue-400 border border-blue-500/30">AI-Optimized</span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {suggestedSquads.map((squad, idx) => (
+                  <div key={idx} className="p-4 rounded-2xl border border-border-dark bg-background-dark/80 flex flex-col gap-4">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex flex-col gap-1">
+                        <span className="px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-widest border border-blue-500/30 bg-blue-500/10 text-blue-400 w-fit">Squad {idx + 1}</span>
+                        <p className="text-[11px] text-text-secondary font-black uppercase tracking-widest">ETA: {squad.estimatedArrival} min</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-black text-white">{(squad.totalScore * 100).toFixed(0)}%</p>
+                        <p className="text-[10px] text-text-secondary uppercase font-bold">Score</p>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col gap-2">
+                      <p className="text-[10px] font-black text-text-secondary uppercase tracking-widest">Volunteers ({squad.volunteers.length})</p>
+                      {squad.volunteers.map((vol) => {
+                        const score = squad.volunteers[0].id === vol.id ? squad.totalScore : 0.8; // Placeholder for other scores
+                        return (
+                          <div key={vol.id} className="p-2 rounded-lg bg-slate-900/50 border border-border-dark flex items-start gap-2">
+                            <div className="size-8 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-white text-[11px] font-black flex-shrink-0">
+                              {vol.name.charAt(0)}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-[11px] font-bold text-white truncate">{vol.name}</p>
+                              <p className="text-[9px] text-text-secondary">{vol.role || 'Responder'}</p>
+                              <div className="flex gap-1 flex-wrap mt-1">
+                                {(vol.skills || []).slice(0, 2).map(skill => (
+                                  <span key={skill} className="px-1 py-0.5 rounded text-[8px] font-black uppercase tracking-widest bg-blue-500/10 text-blue-300 border border-blue-500/20">{skill}</span>
+                                ))}
+                                {(vol.skills || []).length > 2 && (
+                                  <span className="px-1 py-0.5 rounded text-[8px] font-black uppercase tracking-widest bg-slate-700 text-text-secondary">+{vol.skills.length - 2}</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    <div className="flex flex-col gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-black text-text-secondary uppercase tracking-widest">Coverage</span>
+                        <div className="flex-1 h-1.5 rounded-full bg-slate-800 overflow-hidden">
+                          <div className="h-full bg-gradient-to-r from-emerald-500 to-cyan-500" style={{width: `${Math.min(100, (squad.skillCoverage.length / 8) * 100)}%`}}></div>
+                        </div>
+                      </div>
+                      {squad.gaps.length > 0 && (
+                        <div className="p-2 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-start gap-2">
+                          <span className="material-symbols-outlined text-[12px] text-amber-400 flex-shrink-0">info</span>
+                          <p className="text-[9px] text-amber-300 leading-tight">Gaps: {squad.gaps.join(', ')}</p>
+                        </div>
+                      )}
+                    </div>
+
+                    <button 
+                      onClick={() => {
+                        setIncident({...incident, assignedResponders: squad.volunteers.map(v => v.id)});
+                        // Trigger notification
+                        const assignedNames = squad.volunteers.map(v => v.name).join(', ');
+                        alert(`Deployed Squad ${idx + 1}: ${assignedNames} → ETA ${squad.estimatedArrival}min`);
+                      }}
+                      className="w-full py-2 rounded-xl bg-blue-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-blue-700 shadow-glow-blue transition-all active:scale-95 flex items-center justify-center gap-1"
+                    >
+                      <span className="material-symbols-outlined text-[14px]">send</span>
+                      Deploy Squad {idx + 1}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {handoffSuggestions.length > 0 && (
+            <section className="bg-card-dark rounded-2xl border border-border-dark p-6 flex flex-col gap-5">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-amber-400">handshake</span>
+                  <div className="flex flex-col">
+                    <h3 className="text-lg font-bold text-white uppercase tracking-tight">Load-Balancing Handoffs</h3>
+                    <p className="text-[10px] text-text-secondary font-black uppercase tracking-widest">Prevent burnout: suggest cross-region mutual aid</p>
+                  </div>
+                </div>
+                <span className="px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest bg-amber-500/10 text-amber-300 border border-amber-500/30">Recommended</span>
+              </div>
+
+              <div className="flex flex-col gap-3">
+                {handoffSuggestions.map((handoff, idx) => (
+                  <div key={idx} className="p-4 rounded-xl border border-amber-500/30 bg-amber-500/5 flex items-start gap-4">
+                    <span className="material-symbols-outlined text-amber-400 text-xl flex-shrink-0">arrow_forward</span>
+                    <div className="flex-1">
+                      <p className="text-sm font-bold text-white">{handoff.reason}</p>
+                      <p className="text-[11px] text-text-secondary mt-1">{handoff.details}</p>
+                      <div className="flex gap-2 mt-3">
+                        <button className="px-3 py-1 rounded-lg bg-emerald-500 text-white text-[10px] font-black uppercase hover:bg-emerald-600 transition-all active:scale-95">
+                          Approve
+                        </button>
+                        <button className="px-3 py-1 rounded-lg bg-slate-800 text-text-secondary text-[10px] font-black uppercase border border-border-dark hover:bg-slate-700 transition-all active:scale-95">
+                          Reject
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             </section>
           )}
