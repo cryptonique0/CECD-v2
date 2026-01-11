@@ -40,6 +40,7 @@ const Dashboard: React.FC<DashboardProps> = ({ incidents, volunteers = [], curre
   const predictiveDispatches = useMemo<DispatchSuggestion[]>(() => buildPredictiveDispatches(incidents, volunteers), [incidents, volunteers]);
   const [visibleLayers, setVisibleLayers] = useState<{ weather: boolean; flood: boolean; aqi: boolean; roads: boolean; shelters: boolean; hospitals: boolean }>({ weather: false, flood: false, aqi: false, roads: false, shelters: false, hospitals: false });
   const [layerStatus, setLayerStatus] = useState<{ [K in keyof typeof visibleLayers]?: 'live' | 'simulated' }>(() => ({ }));
+  const [lastRefresh, setLastRefresh] = useState<{ [K in keyof typeof visibleLayers]?: number }>({});
   
   // Tactical Modal State (Now used for explicit preview actions if needed, or can be removed)
   const [previewIncident, setPreviewIncident] = useState<Incident | null>(null);
@@ -54,6 +55,31 @@ const Dashboard: React.FC<DashboardProps> = ({ incidents, volunteers = [], curre
   const handleCenterToCoords = (lat?: number, lng?: number) => {
     if (!mapRef.current || !lat || !lng) return;
     mapRef.current.flyTo([lat, lng], 12, { duration: 1.2 });
+  };
+
+  const getTimeAgo = (ts: number) => {
+    const diff = Date.now() - ts;
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return 'just now';
+    if (mins === 1) return '1m ago';
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    return `${hrs}h ago`;
+  };
+
+  const bustCacheAndRefresh = async (key: keyof typeof visibleLayers) => {
+    // Toggle off to remove layers
+    if (visibleLayers[key]) {
+      if (situationalLayersRef.current[key]) {
+        hazardLayersService.removeLayers(situationalLayersRef.current[key]);
+        situationalLayersRef.current[key] = [];
+      }
+      setVisibleLayers(prev => ({ ...prev, [key]: false }));
+    }
+    // Wait a moment, then toggle back on to reload with fresh data
+    await new Promise(r => setTimeout(r, 300));
+    setVisibleLayers(prev => ({ ...prev, [key]: true }));
+    // The toggleLayer effect will fire and reload
   };
 
   // 1. Initialize Leaflet Map
@@ -371,6 +397,7 @@ const Dashboard: React.FC<DashboardProps> = ({ incidents, volunteers = [], curre
         try {
           layers = liveHazardsService.addNOAARadarWMS(mapRef.current, L);
           setLayerStatus(prev => ({ ...prev, weather: 'live' }));
+          setLastRefresh(prev => ({ ...prev, weather: Date.now() }));
         } catch {
           layers = hazardLayersService.addWeatherRadar(mapRef.current, L, currentUser?.lat && currentUser?.lng ? { lat: currentUser.lat!, lng: currentUser.lng! } : undefined);
           setLayerStatus(prev => ({ ...prev, weather: 'simulated' }));
@@ -380,6 +407,7 @@ const Dashboard: React.FC<DashboardProps> = ({ incidents, volunteers = [], curre
         try {
           layers = await liveHazardsService.addFloodGeoJSON(mapRef.current, L, floodUrl);
           setLayerStatus(prev => ({ ...prev, flood: 'live' }));
+          setLastRefresh(prev => ({ ...prev, flood: Date.now() }));
         } catch {
           layers = hazardLayersService.addFloodZones(mapRef.current, L, currentUser?.lat && currentUser?.lng ? { lat: currentUser.lat!, lng: currentUser.lng! } : undefined);
           setLayerStatus(prev => ({ ...prev, flood: 'simulated' }));
@@ -389,6 +417,7 @@ const Dashboard: React.FC<DashboardProps> = ({ incidents, volunteers = [], curre
         try {
           layers = await liveHazardsService.addWAQI(mapRef.current, L, currentUser?.lat && currentUser?.lng ? { lat: currentUser.lat!, lng: currentUser.lng! } : undefined, token);
           setLayerStatus(prev => ({ ...prev, aqi: 'live' }));
+          setLastRefresh(prev => ({ ...prev, aqi: Date.now() }));
         } catch {
           const cities = [
             { name: 'New York', lat: 40.7128, lng: -74.0060, aqi: 65 + Math.floor(Math.random() * 100) },
@@ -402,6 +431,7 @@ const Dashboard: React.FC<DashboardProps> = ({ incidents, volunteers = [], curre
         try {
           layers = await liveHazardsService.addRoadClosuresOverpass(mapRef.current, L, currentUser?.lat && currentUser?.lng ? { lat: currentUser.lat!, lng: currentUser.lng! } : undefined);
           setLayerStatus(prev => ({ ...prev, roads: 'live' }));
+          setLastRefresh(prev => ({ ...prev, roads: Date.now() }));
         } catch {
           layers = hazardLayersService.addRoadClosures(mapRef.current, L, incidents);
           setLayerStatus(prev => ({ ...prev, roads: 'simulated' }));
@@ -410,6 +440,7 @@ const Dashboard: React.FC<DashboardProps> = ({ incidents, volunteers = [], curre
         try {
           layers = await liveHazardsService.addOSMShelters(mapRef.current, L, currentUser?.lat && currentUser?.lng ? { lat: currentUser.lat!, lng: currentUser.lng! } : undefined);
           setLayerStatus(prev => ({ ...prev, shelters: 'live' }));
+          setLastRefresh(prev => ({ ...prev, shelters: Date.now() }));
         } catch {
           const anchors = [
             { name: 'Community Shelter A', lat: (currentUser?.lat ?? 20) + 0.12, lng: (currentUser?.lng ?? 0) - 0.08, capacity: 120 },
@@ -422,6 +453,7 @@ const Dashboard: React.FC<DashboardProps> = ({ incidents, volunteers = [], curre
         try {
           layers = await liveHazardsService.addOSMHospitals(mapRef.current, L, currentUser?.lat && currentUser?.lng ? { lat: currentUser.lat!, lng: currentUser.lng! } : undefined);
           setLayerStatus(prev => ({ ...prev, hospitals: 'live' }));
+          setLastRefresh(prev => ({ ...prev, hospitals: Date.now() }));
         } catch {
           const anchors = [
             { name: 'General Hospital', lat: (currentUser?.lat ?? 20) + 0.05, lng: (currentUser?.lng ?? 0) + 0.09, beds: 25 },
@@ -615,7 +647,7 @@ const Dashboard: React.FC<DashboardProps> = ({ incidents, volunteers = [], curre
               </h4>
               <span className="text-[9px] text-text-secondary uppercase font-bold">Role: {currentUser?.role}</span>
             </div>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="flex flex-col gap-2">
               {([ 
                 { key: 'weather', label: 'Weather Radar', icon: 'radar' },
                 { key: 'flood', label: 'Flood Zones', icon: 'water' },
@@ -624,22 +656,51 @@ const Dashboard: React.FC<DashboardProps> = ({ incidents, volunteers = [], curre
                 { key: 'shelters', label: 'Shelters', icon: 'home' },
                 { key: 'hospitals', label: 'Hospitals', icon: 'local_hospital' }
               ] as Array<{ key: keyof typeof visibleLayers; label: string; icon: string }>).map(item => (
-                <button
-                  key={item.key as string}
-                  onClick={() => toggleLayer(item.key)}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-xl text-[10px] font-bold uppercase border transition-all ${visibleLayers[item.key] ? 'bg-primary/10 border-primary/30 text-white' : 'bg-slate-800 border-border-dark text-white/60 hover:text-white'}`}
-                >
-                  <span className="material-symbols-outlined text-[14px]">{item.icon}</span>
-                  <span className="flex items-center gap-1">
-                    {item.label}
-                    {visibleLayers[item.key] && (
-                      <span className={`ml-1 px-1.5 py-0.5 rounded text-[8px] font-black uppercase border ${layerStatus[item.key] === 'live' ? 'bg-emerald-500/10 text-accent-green border-emerald-500/40' : 'bg-slate-700 text-white/80 border-slate-500/40'}`}>
-                        {layerStatus[item.key] === 'live' ? 'Live' : 'Sim'}
-                      </span>
-                    )}
-                  </span>
-                </button>
+                <div key={item.key as string} className="flex items-center gap-2">
+                  <button
+                    onClick={() => toggleLayer(item.key)}
+                    className={`flex-1 flex items-center gap-2 px-3 py-2 rounded-xl text-[10px] font-bold uppercase border transition-all ${visibleLayers[item.key] ? 'bg-primary/10 border-primary/30 text-white' : 'bg-slate-800 border-border-dark text-white/60 hover:text-white'}`}
+                  >
+                    <span className="material-symbols-outlined text-[14px]">{item.icon}</span>
+                    <span className="flex-1 flex items-center gap-1 text-left">
+                      <span className="flex-1">{item.label}</span>
+                      {visibleLayers[item.key] && (
+                        <span className={`px-1 py-0.5 rounded text-[8px] font-black uppercase border whitespace-nowrap ${layerStatus[item.key] === 'live' ? 'bg-emerald-500/10 text-accent-green border-emerald-500/40' : 'bg-slate-700 text-white/80 border-slate-500/40'}`}>
+                          {layerStatus[item.key] === 'live' ? 'Live' : 'Sim'}
+                        </span>
+                      )}
+                    </span>
+                  </button>
+                  {visibleLayers[item.key] && (
+                    <button
+                      onClick={() => bustCacheAndRefresh(item.key)}
+                      className="px-2 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-border-dark text-white/60 hover:text-white transition-all text-[10px]"
+                      title={`Refresh ${item.label}`}
+                    >
+                      <span className="material-symbols-outlined text-[12px]">refresh</span>
+                    </button>
+                  )}
+                </div>
               ))}
+              {Object.keys(lastRefresh).length > 0 && (
+                <div className="mt-2 pt-2 border-t border-border-dark text-[9px] text-text-secondary uppercase font-bold">
+                  {([ 
+                    { key: 'weather', label: 'Radar' },
+                    { key: 'flood', label: 'Flood' },
+                    { key: 'aqi', label: 'AQI' },
+                    { key: 'roads', label: 'Roads' },
+                    { key: 'shelters', label: 'Shelters' },
+                    { key: 'hospitals', label: 'Hospitals' }
+                  ] as Array<{ key: keyof typeof visibleLayers; label: string }>).map(item => 
+                    visibleLayers[item.key] && lastRefresh[item.key] ? (
+                      <div key={item.key as string} className="flex justify-between">
+                        <span>{item.label}:</span>
+                        <span className="text-white/60">{getTimeAgo(lastRefresh[item.key]!)}</span>
+                      </div>
+                    ) : null
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>
