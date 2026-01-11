@@ -8,6 +8,9 @@ import { zkService } from '../services/zkService';
 import { notificationService } from '../services/notificationService';
 import { playbookService } from '../services/playbookService';
 import { volunteerOptimizationService, SuggestedSquad, HandoffSuggestion } from '../services/volunteerOptimizationService';
+import { auditTrailService, AuditEvent, IncidentTimeline } from '../services/auditTrailService';
+import { evidenceService, Evidence } from '../services/evidenceService';
+import { multiSigService, MultiSigProposal } from '../services/multiSigService';
 
 interface IncidentDetailProps {
   incidents: Incident[];
@@ -38,6 +41,12 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incidents, setIncidents
   // Volunteer optimization state
   const [suggestedSquads, setSuggestedSquads] = useState<SuggestedSquad[]>([]);
   const [handoffSuggestions, setHandoffSuggestions] = useState<HandoffSuggestion[]>([]);
+  const [auditTimeline, setAuditTimeline] = useState<IncidentTimeline | undefined>();
+  const [evidence, setEvidence] = useState<Evidence[]>([]);
+  const [criticalProposals, setCriticalProposals] = useState<MultiSigProposal[]>([]);
+  const [selectedEvidence, setSelectedEvidence] = useState<Evidence | null>(null);
+  const [evidenceDescription, setEvidenceDescription] = useState('');
+  const [evidenceCategory, setEvidenceCategory] = useState<'photo' | 'video' | 'document' | 'audio' | 'other'>('photo');
 
   const chatEndRef = useRef<HTMLDivElement>(null);
 
@@ -62,8 +71,24 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incidents, setIncidents
       unassignedIncidents,
       volunteers
     );
-    setHandoffSuggestions(handoffs);
-  }, [incident, volunteers]);
+    setHandoffSuggestions(handoffs);    
+    // Initialize audit trail
+    if (!auditTrailService.getTimeline(incident.id)) {
+      auditTrailService.initializeTimeline(incident.id);
+    }
+    setAuditTimeline(auditTrailService.getTimeline(incident.id));
+    
+    // Record incident opened in audit trail
+    auditTrailService.recordEvent(incident.id, currentUser.name, 'INCIDENT_OPENED', `Opened by ${currentUser.name} (${currentUser.role})`);
+    
+    // Fetch evidence for this incident
+    const incidentEvidence = evidenceService.getIncidentEvidence(incident.id);
+    setEvidence(incidentEvidence);
+    
+    // Fetch critical proposals for this incident
+    const proposals = multiSigService.getIncidentProposals(incident.id);
+    setCriticalProposals(proposals);
+  }, [incident, volunteers, currentUser]);
 
   useEffect(() => {
     const id = setInterval(() => setNowTick(Date.now()), 1000);
@@ -635,6 +660,34 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incidents, setIncidents
                         </button>
                       </div>
                     </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+
+
+          {auditTimeline && (
+            <section className="bg-card-dark rounded-2xl border border-border-dark p-6 flex flex-col gap-5">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-cyan-400">history</span>
+                  <div className="flex flex-col">
+                    <h3 className="text-lg font-bold text-white uppercase tracking-tight">Immutable Incident Timeline</h3>
+                    <p className="text-[10px] text-text-secondary font-black uppercase tracking-widest">On-chain anchored audit trail</p>
+                  </div>
+                </div>
+              </div>
+              <div className="max-h-64 overflow-y-auto flex flex-col gap-2">
+                {auditTimeline.events.slice(-10).reverse().map((event) => (
+                  <div key={event.id} className="p-3 rounded-lg bg-background-dark border border-border-dark text-[10px]">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="px-2 py-0.5 rounded bg-slate-700 text-text-secondary font-black uppercase text-[8px]">{event.action}</span>
+                      <span className="text-text-secondary font-bold">{event.actor}</span>
+                      <span className="ml-auto text-text-secondary text-[9px]">{new Date(event.timestamp).toLocaleTimeString()}</span>
+                    </div>
+                    <p className="text-text-secondary text-[9px]">{event.details}</p>
                   </div>
                 ))}
               </div>

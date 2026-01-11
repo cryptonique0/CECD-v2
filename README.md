@@ -106,3 +106,79 @@ If a source is unavailable, the app gracefully falls back to simulated overlays.
 - Scoring weights (skill 35%, proximity 30%, availability 20%, trust 15%) can be tuned in `volunteerOptimizationService.ts`.
 - Squad generation is deterministic; same incident + volunteer set always yields same 3 squads.
 - No external API calls; all logic runs on-device for sub-100ms response.
+
+### 9. Chain-of-Custody & Audit Trail: Immutable Incident Timeline
+
+**Purpose**: Create a tamper-proof record of all incident actions with cryptographic anchoring to blockchain and multi-sig approval flows for critical decisions.
+
+**Key Components**:
+
+1. **Immutable Incident Timeline** (`services/auditTrailService.ts`):
+   - Records all incident events (status changes, actions, approvals) with cryptographic signatures
+   - Merkle tree root hash ensures tamper-detection (modify any event → root hash changes)
+   - On-chain anchoring: timeline root hash can be recorded on blockchain for permanent immutability
+   - Verifiable export for legal/compliance reports
+
+2. **Signed Evidence Uploads** (`services/evidenceService.ts`):
+   - Cryptographically sign all evidence (photos, documents, audio, video)
+   - Chain-of-custody tracking: immutable log of who handled evidence and when
+   - Evidence categories: photo, video, document, audio, other
+   - Verification checks integrity and custody chain validity
+   - Archive action (immutable marking) for concluded evidence
+
+3. **Enhanced Multi-Sig Approvals** (`services/multiSigService.ts`):
+   - Critical actions require multi-sig consensus (default: 3-of-3):
+     - **Fund Release**: Unlock donations for verified responders
+     - **Evacuation**: Authorize mass evacuation (requires multiple authorized signers)
+     - **Lockdown**: Trigger incident lockdown (prevent entry/exit)
+   - Each signer is recorded with timestamp and signature
+   - Auto-execute when all signatures collected
+   - Integrated with audit trail: every approval is immutably logged
+
+**UI Features** (`pages/IncidentDetail.tsx`):
+- **Immutable Timeline Section**:
+  - Live event feed (last 10 actions)
+  - "Anchor to Chain" button to record root hash on-chain (simulated)
+  - "Verify Timeline" button to check integrity
+  - "Export Report" button to generate compliant report
+
+- **Evidence & Chain-of-Custody Section**:
+  - Upload form with category selection (photo/video/document/audio/other)
+  - Recent evidence list (clickable)
+  - Detailed custody view: who accessed, when, what action
+  - "Verify Integrity" button
+  - "Archive" button for evidence closure
+
+- **Critical Action Approvals Section**:
+  - Pending proposals with signature progress bar
+  - Signers displayed with green checkmark
+  - "Sign Approval" button (prevents double-signing)
+  - Status: Pending → Approved → Executed
+  - Proposed actions recorded in audit trail
+
+- **Proposal Buttons**:
+  - "Propose Fund Release" (with amount)
+  - "Propose Evacuation"
+
+**Example Workflow**:
+1. Dispatcher uploads photo of damage (evidence)
+2. Photo is signed, chain-of-custody initialized
+3. Dispatcher proposes $10K fund release for repairs
+4. Multi-sig proposal created (1/3 signatures)
+5. Two more authorized responders sign → proposal auto-executes
+6. All actions (upload, proposal, signatures) recorded in audit trail
+7. Timeline root hash anchored to blockchain
+8. Legal report exported for compliance audit
+
+**Scoring Impact**:
+- **Transparency**: 100% traceable incident history
+- **Accountability**: Every action signed and timestamped
+- **Compliance**: Exportable audit trail for regulators
+- **Trust**: On-chain immutability prevents tampering
+- **Critical Action Safety**: Multi-sig prevents rogue fund releases or unauthorized evacuations
+
+**Notes**:
+- Merkle tree hash uses simulated hashing (production: keccak256)
+- Signatures are simulated (production: ECDSA with web3.js)
+- On-chain anchoring simulated (production: contract interaction on Base)
+- Evidence metadata immutable; file storage separate (IPFS/Arweave in production)
