@@ -309,6 +309,12 @@ const Incidents: React.FC<IncidentsProps> = ({ incidents }) => {
                         <span className={`px-2 py-0.5 rounded-lg text-[9px] font-semibold ${STATUS_COLORS[incident.status]}`}>
                           {incident.status}
                         </span>
+                        {incident.pendingSync && (
+                          <span className="mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[9px] font-bold uppercase bg-amber-500/10 text-amber-300 border border-amber-500/30">
+                            <span className="material-symbols-outlined text-[12px]">cloud_off</span>
+                            Pending Sync
+                          </span>
+                        )}
                       </div>
                     </div>
 
@@ -363,6 +369,12 @@ const Incidents: React.FC<IncidentsProps> = ({ incidents }) => {
                   <div className="hidden sm:flex flex-col items-end gap-1">
                     <span className={`px-2 py-0.5 rounded text-[9px] font-semibold ${STATUS_COLORS[incident.status]}`}>{incident.status}</span>
                     <span className="text-[10px] text-white/40">{getTimeAgo(incident.timestamp)}</span>
+                    {incident.pendingSync && (
+                      <span className="mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-bold uppercase bg-amber-500/10 text-amber-300 border border-amber-500/30">
+                        <span className="material-symbols-outlined text-[12px]">cloud_off</span>
+                        Pending Sync
+                      </span>
+                    )}
                   </div>
                   <span className="material-symbols-outlined text-white/20 group-hover:text-primary group-hover:translate-x-1 transition-all">chevron_right</span>
                 </div>

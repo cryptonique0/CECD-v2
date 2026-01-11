@@ -83,6 +83,17 @@ const App: React.FC = () => {
     offlineService.setSyncHandler(async (item) => {
       if (item.type === 'incident') {
         const synced = item.data as Incident;
+        // If translation is missing, fetch it now that we're online
+        if (!synced.translatedDescription && synced.description) {
+          try {
+            const result = await aiService.predictIncident(synced.description);
+            synced.translatedDescription = result.translation;
+            // Optionally update confidence
+            synced.confidenceScore = result.confidence;
+          } catch (e) {
+            console.warn('[SYNC] Translation fetch failed, proceeding without it');
+          }
+        }
         setIncidents(prev => prev.map(i => i.id === synced.id ? { ...synced, pendingSync: false } : i));
       }
     });

@@ -277,6 +277,12 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incidents, setIncidents
                 <span className="text-[9px] font-black uppercase tracking-widest">ZK-Shielded Identity</span>
               </div>
             )}
+            {incident.pendingSync && (
+              <div className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-500/10 border border-amber-500/30 rounded-lg text-amber-300 animate-in fade-in zoom-in duration-500">
+                <span className="material-symbols-outlined text-sm">cloud_off</span>
+                <span className="text-[9px] font-black uppercase tracking-widest">Pending Sync</span>
+              </div>
+            )}
           </div>
           <div className="flex flex-wrap items-center gap-3 text-sm text-text-secondary">
             <span className="flex items-center gap-1 font-bold">
