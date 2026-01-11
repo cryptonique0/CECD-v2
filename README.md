@@ -33,6 +33,23 @@ View your app in AI Studio: https://ai.studio/apps/drive/1of-5q8XEFbmKKg4WNnLD5z
 - SMS/USSD bridge (stub): Minimal text reports can be ingested via gateway parsing (see services/smsBridgeService.ts). Useful in low-connectivity contexts.
 
 How it works:
+- For demos, you can convert a simple SMS string to an incident via `buildIncidentFromSms()` and add it to the feed.
+ 
+## Live Situational Layers (optional)
+
+- Weather radar: NOAA NEXRAD WMS overlay (no key required).
+- Flood zones: Provide a GeoJSON URL via `VITE_FLOOD_GEOJSON_URL`.
+- Air Quality (AQI): WAQI API near your position; set `VITE_WAQI_TOKEN`.
+- Road closures, shelters, hospitals: Queried via OpenStreetMap Overpass around your location.
+
+Environment variables (create `.env.local`):
+
+```
+VITE_WAQI_TOKEN=your_waqi_token_here
+VITE_FLOOD_GEOJSON_URL=https://example.com/flood-zones.geojson
+```
+
+If a source is unavailable, the app gracefully falls back to simulated overlays.
 - The app detects online/offline events and queues incident payloads locally.
 - When back online, queued items are processed and `pendingSync` is cleared.
 - For demos, you can convert a simple SMS string to an incident via `buildIncidentFromSms()` and add it to the feed.

@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { analyticsService } from '../services/analyticsService';
 import { buildPredictiveDispatches, DispatchSuggestion } from '../services/routingService';
 import { hazardLayersService, LeafletLayer } from '../services/hazardLayersService';
+import { liveHazardsService } from '../services/liveHazardsService';
 
 declare const L: any;
 
@@ -350,30 +351,56 @@ const Dashboard: React.FC<DashboardProps> = ({ incidents, volunteers = [], curre
     if (next[key]) {
       let layers: LeafletLayer[] = [];
       if (key === 'weather') {
-        layers = hazardLayersService.addWeatherRadar(mapRef.current, L, currentUser?.lat && currentUser?.lng ? { lat: currentUser.lat!, lng: currentUser.lng! } : undefined);
+        try {
+          layers = liveHazardsService.addNOAARadarWMS(mapRef.current, L);
+        } catch {
+          layers = hazardLayersService.addWeatherRadar(mapRef.current, L, currentUser?.lat && currentUser?.lng ? { lat: currentUser.lat!, lng: currentUser.lng! } : undefined);
+        }
       } else if (key === 'flood') {
-        layers = hazardLayersService.addFloodZones(mapRef.current, L, currentUser?.lat && currentUser?.lng ? { lat: currentUser.lat!, lng: currentUser.lng! } : undefined);
+        const floodUrl = import.meta?.env?.VITE_FLOOD_GEOJSON_URL as string | undefined;
+        try {
+          layers = await liveHazardsService.addFloodGeoJSON(mapRef.current, L, floodUrl);
+        } catch {
+          layers = hazardLayersService.addFloodZones(mapRef.current, L, currentUser?.lat && currentUser?.lng ? { lat: currentUser.lat!, lng: currentUser.lng! } : undefined);
+        }
       } else if (key === 'aqi') {
-        const cities = [
-          { name: 'New York', lat: 40.7128, lng: -74.0060, aqi: 65 + Math.floor(Math.random() * 100) },
-          { name: 'London', lat: 51.5074, lng: -0.1278, aqi: 40 + Math.floor(Math.random() * 120) },
-          { name: 'Beijing', lat: 39.9042, lng: 116.4074, aqi: 80 + Math.floor(Math.random() * 150) }
-        ];
-        layers = hazardLayersService.addAQI(mapRef.current, L, cities);
+        const token = import.meta?.env?.VITE_WAQI_TOKEN as string | undefined;
+        try {
+          layers = await liveHazardsService.addWAQI(mapRef.current, L, currentUser?.lat && currentUser?.lng ? { lat: currentUser.lat!, lng: currentUser.lng! } : undefined, token);
+        } catch {
+          const cities = [
+            { name: 'New York', lat: 40.7128, lng: -74.0060, aqi: 65 + Math.floor(Math.random() * 100) },
+            { name: 'London', lat: 51.5074, lng: -0.1278, aqi: 40 + Math.floor(Math.random() * 120) },
+            { name: 'Beijing', lat: 39.9042, lng: 116.4074, aqi: 80 + Math.floor(Math.random() * 150) }
+          ];
+          layers = hazardLayersService.addAQI(mapRef.current, L, cities);
+        }
       } else if (key === 'roads') {
-        layers = hazardLayersService.addRoadClosures(mapRef.current, L, incidents);
+        try {
+          layers = await liveHazardsService.addRoadClosuresOverpass(mapRef.current, L, currentUser?.lat && currentUser?.lng ? { lat: currentUser.lat!, lng: currentUser.lng! } : undefined);
+        } catch {
+          layers = hazardLayersService.addRoadClosures(mapRef.current, L, incidents);
+        }
       } else if (key === 'shelters') {
-        const anchors = [
-          { name: 'Community Shelter A', lat: (currentUser?.lat ?? 20) + 0.12, lng: (currentUser?.lng ?? 0) - 0.08, capacity: 120 },
-          { name: 'Relief Center B', lat: (currentUser?.lat ?? 20) - 0.22, lng: (currentUser?.lng ?? 0) + 0.14, capacity: 60 }
-        ];
-        layers = hazardLayersService.addShelters(mapRef.current, L, anchors);
+        try {
+          layers = await liveHazardsService.addOSMShelters(mapRef.current, L, currentUser?.lat && currentUser?.lng ? { lat: currentUser.lat!, lng: currentUser.lng! } : undefined);
+        } catch {
+          const anchors = [
+            { name: 'Community Shelter A', lat: (currentUser?.lat ?? 20) + 0.12, lng: (currentUser?.lng ?? 0) - 0.08, capacity: 120 },
+            { name: 'Relief Center B', lat: (currentUser?.lat ?? 20) - 0.22, lng: (currentUser?.lng ?? 0) + 0.14, capacity: 60 }
+          ];
+          layers = hazardLayersService.addShelters(mapRef.current, L, anchors);
+        }
       } else if (key === 'hospitals') {
-        const anchors = [
-          { name: 'General Hospital', lat: (currentUser?.lat ?? 20) + 0.05, lng: (currentUser?.lng ?? 0) + 0.09, beds: 25 },
-          { name: 'Trauma Center', lat: (currentUser?.lat ?? 20) - 0.1, lng: (currentUser?.lng ?? 0) - 0.12, beds: 12 }
-        ];
-        layers = hazardLayersService.addHospitals(mapRef.current, L, anchors);
+        try {
+          layers = await liveHazardsService.addOSMHospitals(mapRef.current, L, currentUser?.lat && currentUser?.lng ? { lat: currentUser.lat!, lng: currentUser.lng! } : undefined);
+        } catch {
+          const anchors = [
+            { name: 'General Hospital', lat: (currentUser?.lat ?? 20) + 0.05, lng: (currentUser?.lng ?? 0) + 0.09, beds: 25 },
+            { name: 'Trauma Center', lat: (currentUser?.lat ?? 20) - 0.1, lng: (currentUser?.lng ?? 0) - 0.12, beds: 12 }
+          ];
+          layers = hazardLayersService.addHospitals(mapRef.current, L, anchors);
+        }
       }
       situationalLayersRef.current[key] = layers;
     }
