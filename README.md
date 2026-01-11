@@ -22,3 +22,4 @@ View your app in AI Studio: https://ai.studio/apps/drive/1of-5q8XEFbmKKg4WNnLD5z
 ## New
 
 - Predictive dispatch & routing: uses live incident + responder locations to suggest pre-positioning, fastest safe routes, and reroute-aware ETAs on the dashboard.
+- Escalation playbooks: auto-generate SOPs per incident with owners, timers, skill needs, and gap alerts.

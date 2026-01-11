@@ -42,6 +42,24 @@ export interface Incident {
   zkProof?: string;
 }
 
+export interface PlaybookStep {
+  id: string;
+  title: string;
+  owner: string;
+  expectedDurationMins: number;
+  dueAt: number;
+  status: 'Pending' | 'InProgress' | 'Done' | 'Late';
+  requiredSkills: string[];
+  resourcesNeeded: string[];
+}
+
+export interface PlaybookPlan {
+  steps: PlaybookStep[];
+  requiredSkills: string[];
+  resourceGaps: string[];
+  summary: string;
+}
+
 export interface Donation {
   id: string;
   amount: number;

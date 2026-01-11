@@ -138,8 +138,8 @@ const App: React.FC = () => {
             <Routes>
               <Route path="/" element={<Dashboard incidents={incidents} volunteers={volunteers} currentUser={currentUser} />} />
               <Route path="/incidents" element={<Incidents incidents={incidents} />} />
-              <Route path="/incidents/:id" element={<IncidentDetail incidents={incidents} setIncidents={setIncidents} currentUser={currentUser} />} />
-              <Route path="/report" element={<ReportIncident onSubmit={addIncident} currentUser={currentUser} />} />
+              <Route path="/incidents/:id" element={<IncidentDetail incidents={incidents} setIncidents={setIncidents} currentUser={currentUser} volunteers={volunteers} />} />
+              <Route path="/report" element={<ReportIncident onSubmit={addIncident} currentUser={currentUser} isWhisperMode={globalWhisperMode} setIsWhisperMode={setGlobalWhisperMode} />} />
               <Route path="/volunteers" element={<Volunteers volunteers={volunteers} onUpdateStatus={updateVolunteerStatus} onAddVolunteer={addVolunteer} />} />
               <Route path="/admin" element={<AdminGovernance />} />
               <Route path="/profile" element={<Profile user={currentUser} />} />

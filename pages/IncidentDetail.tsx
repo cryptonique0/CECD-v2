@@ -1,19 +1,21 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Incident, User, IncidentStatus, Severity, ChatMessage } from '../types';
+import { Incident, User, IncidentStatus, Severity, ChatMessage, PlaybookPlan, PlaybookStep } from '../types';
 import { CATEGORY_ICONS, SEVERITY_COLORS, STATUS_COLORS } from '../constants';
 import { initialUsers } from '../mockData';
 import { baseVaultService } from '../services/baseVaultService';
 import { zkService } from '../services/zkService';
 import { notificationService } from '../services/notificationService';
+import { playbookService } from '../services/playbookService';
 
 interface IncidentDetailProps {
   incidents: Incident[];
   setIncidents: React.Dispatch<React.SetStateAction<Incident[]>>;
   currentUser: User;
+  volunteers: User[];
 }
 
-const IncidentDetail: React.FC<IncidentDetailProps> = ({ incidents, setIncidents, currentUser }) => {
+const IncidentDetail: React.FC<IncidentDetailProps> = ({ incidents, setIncidents, currentUser, volunteers }) => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [incident, setIncident] = useState<Incident | undefined>(incidents.find(i => i.id === id));
@@ -24,7 +26,9 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incidents, setIncidents
   const [donationCurrency, setDonationCurrency] = useState<'ETH' | 'USDC'>('ETH');
   const [showShareModal, setShowShareModal] = useState(false);
   const [copyFeedback, setCopyFeedback] = useState(false);
-
+  const [playbook, setPlaybook] = useState<PlaybookPlan | null>(null);
+  const [nowTick, setNowTick] = useState<number>(Date.now());
+  
   // ZK Verification State
   const [isVerifyingZk, setIsVerifyingZk] = useState(false);
   const [zkVerificationResult, setZkVerificationResult] = useState<'idle' | 'valid' | 'invalid'>('idle');
@@ -38,7 +42,14 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incidents, setIncidents
       { id: '1', incidentId: incident.id, senderId: 'user-1', text: `Global Command established. Node active for ${incident.locationName}.`, timestamp: incident.timestamp + 1000 },
       { id: '2', incidentId: incident.id, senderId: 'user-2', text: `Responders identified in the sector. Initial analysis complete.`, timestamp: incident.timestamp + 5000 },
     ]);
-  }, [incident]);
+
+    setPlaybook(playbookService.generatePlaybook(incident, volunteers));
+  }, [incident, volunteers]);
+
+  useEffect(() => {
+    const id = setInterval(() => setNowTick(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -99,6 +110,25 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incidents, setIncidents
     setIncidents(updatedIncidents);
     setIncident({ ...incident, status: newStatus });
   };
+
+  const formatRemaining = (dueAt: number) => {
+    const diff = Math.max(0, dueAt - nowTick);
+    const mins = Math.floor(diff / 60000);
+    const secs = Math.floor((diff % 60000) / 1000);
+    return `${mins}m ${secs.toString().padStart(2, '0')}s`;
+  };
+
+  const handleStepStatus = (stepId: string, status: PlaybookStep['status']) => {
+    setPlaybook(prev => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        steps: prev.steps.map(s => s.id === stepId ? { ...s, status } : s)
+      };
+    });
+  };
+
+  const lateSteps = playbook?.steps.filter(s => nowTick > s.dueAt && s.status !== 'Done') || [];
 
   const handleVerifyZk = async () => {
     if (!incident?.zkProof) return;
@@ -351,6 +381,108 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incidents, setIncidents
               </div>
             )}
           </section>
+
+          {playbook && (
+            <section className="bg-card-dark rounded-2xl border border-border-dark p-6 flex flex-col gap-5">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-primary">playlist_add_check_circle</span>
+                  <div className="flex flex-col">
+                    <h3 className="text-lg font-bold text-white uppercase tracking-tight">Escalation Playbook</h3>
+                    <p className="text-[10px] text-text-secondary font-black uppercase tracking-widest">Auto-generated SOP with owners, timers, and gaps</p>
+                  </div>
+                </div>
+                <span className="px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest bg-slate-800 text-text-secondary border border-border-dark">Live</span>
+              </div>
+
+              {lateSteps.length > 0 && (
+                <div className="flex items-center gap-2 p-3 rounded-xl border border-accent-red/40 bg-accent-red/10 text-accent-red text-[11px] font-black uppercase tracking-widest">
+                  <span className="material-symbols-outlined text-sm">warning</span>
+                  {lateSteps.length} step{lateSteps.length > 1 ? 's' : ''} overdue. Reprioritize immediately.
+                </div>
+              )}
+
+              <div className="flex flex-wrap gap-3">
+                <div className="flex items-center gap-2 text-[11px] text-text-secondary font-bold uppercase tracking-widest">
+                  <span className="material-symbols-outlined text-sm">handyman</span>
+                  Required Skills
+                </div>
+                {playbook.requiredSkills.map(skill => (
+                  <span key={skill} className="px-3 py-1 rounded-full bg-primary/10 text-primary text-[11px] font-black uppercase tracking-widest border border-primary/30">{skill}</span>
+                ))}
+              </div>
+
+              {playbook.resourceGaps.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-accent-red">Resource Gaps:</span>
+                  {playbook.resourceGaps.map(gap => (
+                    <span key={gap} className="px-3 py-1 rounded-full bg-accent-red/10 text-accent-red text-[10px] font-black uppercase tracking-widest border border-accent-red/40">{gap}</span>
+                  ))}
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {playbook.steps.map(step => {
+                  const isLate = nowTick > step.dueAt && step.status !== 'Done';
+                  const displayStatus = step.status === 'Done' ? 'Done' : isLate ? 'Late' : step.status;
+                  const statusClass = displayStatus === 'Done'
+                    ? 'bg-emerald-500/10 text-accent-green border-emerald-500/40'
+                    : displayStatus === 'Late'
+                      ? 'bg-accent-red/10 text-accent-red border-accent-red/40'
+                      : displayStatus === 'InProgress'
+                        ? 'bg-blue-500/10 text-blue-400 border-blue-500/30'
+                        : 'bg-slate-800 text-text-secondary border-border-dark';
+
+                  return (
+                    <div key={step.id} className="p-4 rounded-2xl border border-border-dark bg-background-dark/60 flex flex-col gap-3 shadow-sm">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex flex-col gap-1">
+                          <span className={`px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-widest border ${statusClass}`}>{displayStatus}</span>
+                          <h4 className="text-white font-bold text-sm leading-tight">{step.title}</h4>
+                          <div className="flex items-center gap-2 text-[10px] text-text-secondary uppercase font-black">
+                            <span className="material-symbols-outlined text-[14px]">badge</span>
+                            {step.owner}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-[11px] font-black text-white">{formatRemaining(step.dueAt)}</p>
+                          <p className="text-[10px] text-text-secondary uppercase font-bold">Due</p>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap gap-2">
+                        {step.requiredSkills.map(skill => (
+                          <span key={skill} className="px-2 py-1 rounded-lg bg-slate-800 text-[10px] text-text-secondary font-black uppercase tracking-widest border border-border-dark">{skill}</span>
+                        ))}
+                        {step.resourcesNeeded.map(res => (
+                          <span key={res} className="px-2 py-1 rounded-lg bg-amber-500/10 text-amber-300 text-[10px] font-black uppercase tracking-widest border border-amber-500/30">{res}</span>
+                        ))}
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        {step.status !== 'Done' && (
+                          <button
+                            onClick={() => handleStepStatus(step.id, 'InProgress')}
+                            className="flex-1 py-2 rounded-xl bg-slate-800 text-white text-[10px] font-black uppercase tracking-widest hover:bg-slate-700 transition-all border border-border-dark"
+                          >
+                            <span className="material-symbols-outlined text-[14px]">play_arrow</span>
+                            Start
+                          </button>
+                        )}
+                        <button
+                          onClick={() => handleStepStatus(step.id, 'Done')}
+                          className="flex-1 py-2 rounded-xl bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest shadow-glow active:scale-95 transition-all flex items-center justify-center gap-1"
+                        >
+                          <span className="material-symbols-outlined text-[14px]">check_circle</span>
+                          Done
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          )}
 
           <section id="donation-section" className="bg-gradient-to-br from-primary/10 to-emerald-500/5 rounded-2xl border border-primary/20 p-8 flex flex-col md:flex-row items-center gap-8">
             <div className="flex flex-col gap-3 flex-1">
