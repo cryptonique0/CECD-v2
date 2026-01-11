@@ -1,12 +1,25 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { User } from '../types';
+import { trustService, TrustComponent, TrustProfile } from '../services/trustService';
 
 interface ProfileProps {
   user: User;
 }
 
 const Profile: React.FC<ProfileProps> = ({ user }) => {
+  const [trustProfile, setTrustProfile] = useState<TrustProfile | null>(null);
+  const [mockSignals] = useState<TrustComponent[]>([
+    trustService.addMissionAttestation(user.id, 'INC-2025-001', 92),
+    trustService.addPeerReview('user-2', user.id, 88, 'Excellent coordination'),
+    trustService.addZkSkillProof(user.id, 'First Aid', '0xzkp...abc123'),
+    trustService.addOnChainAttestation(user.id, 'Government ID', '0xatt...def456')
+  ]);
+
+  useEffect(() => {
+    setTrustProfile(trustService.buildProfile(user, mockSignals));
+  }, [user, mockSignals]);
+
   return (
     <div className="p-6 md:p-10 flex flex-col gap-8">
       <div className="bg-card-dark rounded-2xl border border-border-dark p-8 flex flex-col md:flex-row gap-8 items-center md:items-start text-center md:text-left shadow-2xl relative overflow-hidden">
@@ -49,22 +62,62 @@ const Profile: React.FC<ProfileProps> = ({ user }) => {
         <div className="flex flex-col gap-8">
           <div className="bg-card-dark border border-border-dark rounded-2xl p-6 flex flex-col gap-6 shadow-xl">
              <h3 className="text-lg font-bold text-white flex items-center justify-between">
-                <span>Trust Level</span>
+                <span>Trust Graph</span>
                 <span className="material-symbols-outlined text-primary">verified</span>
              </h3>
              <div className="bg-background-dark/50 p-6 rounded-2xl border border-border-dark flex flex-col gap-4">
                 <div className="flex justify-between items-end">
-                  <span className="text-[10px] font-black text-text-secondary uppercase tracking-widest">Reputation Score</span>
-                  <span className="text-4xl font-black text-white leading-none">{user.trustScore}<span className="text-base text-text-secondary font-normal ml-1">/100</span></span>
+                  <span className="text-[10px] font-black text-text-secondary uppercase tracking-widest">Dynamic Score</span>
+                  <span className="text-4xl font-black text-white leading-none">{trustProfile?.score || user.trustScore}<span className="text-base text-text-secondary font-normal ml-1">/100</span></span>
                 </div>
                 <div className="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
-                  <div className="bg-gradient-to-r from-primary to-accent-green h-full rounded-full shadow-glow" style={{ width: `${user.trustScore}%` }}></div>
+                  <div className="bg-gradient-to-r from-primary to-accent-green h-full rounded-full shadow-glow" style={{ width: `${trustProfile?.score || user.trustScore}%` }}></div>
                 </div>
-                <div className="flex items-center gap-2 text-accent-green text-[10px] font-bold uppercase tracking-widest">
-                  <span className="material-symbols-outlined text-sm">trending_up</span>
-                  +5% Recent increase
+                <div className="flex items-center gap-2 text-cyan-400 text-[10px] font-bold uppercase tracking-widest">
+                  <span className="material-symbols-outlined text-sm filled">schedule</span>
+                  Time-decaying signals
                 </div>
              </div>
+
+             {trustProfile && (
+               <div className="flex flex-col gap-3">
+                 <div className="flex items-center justify-between">
+                   <span className="text-[10px] font-black text-text-secondary uppercase tracking-widest">Trust Signals</span>
+                   <span className="text-[10px] font-mono text-primary">{trustProfile.components.length} active</span>
+                 </div>
+                 {trustProfile.components.map((comp, idx) => (
+                   <div key={idx} className="p-3 rounded-xl bg-background-dark/60 border border-border-dark flex flex-col gap-2">
+                     <div className="flex items-start justify-between gap-2">
+                       <div className="flex flex-col gap-1">
+                         <span className="text-xs font-bold text-white">{comp.label}</span>
+                         <div className="flex items-center gap-2">
+                           <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-lg border ${
+                             comp.type === 'OnChainAttestation' ? 'bg-cyan-500/10 text-cyan-400 border-cyan-500/30' :
+                             comp.type === 'ZkSkillProof' ? 'bg-purple-500/10 text-purple-400 border-purple-500/30' :
+                             comp.type === 'MissionCompletion' ? 'bg-emerald-500/10 text-accent-green border-emerald-500/30' :
+                             'bg-blue-500/10 text-blue-400 border-blue-500/30'
+                           }`}>{comp.type}</span>
+                           {comp.proofRef && (
+                             <span className="text-[9px] font-mono text-text-secondary flex items-center gap-1">
+                               <span className="material-symbols-outlined text-[12px]">link</span>
+                               {comp.proofRef.slice(0, 12)}...
+                             </span>
+                           )}
+                         </div>
+                       </div>
+                       <div className="text-right">
+                         <span className="text-lg font-black text-white">{Math.round(comp.value)}</span>
+                         <div className="text-[9px] text-text-secondary uppercase font-bold">w: {comp.weight}</div>
+                       </div>
+                     </div>
+                     <div className="flex items-center gap-2 text-[9px] text-text-secondary">
+                       <span className="material-symbols-outlined text-[12px]">hourglass_bottom</span>
+                       Decay: {comp.decayFactor}h half-life
+                     </div>
+                   </div>
+                 ))}
+               </div>
+             )}
           </div>
 
           <div className="bg-card-dark border border-border-dark rounded-2xl p-6 flex flex-col gap-6 shadow-xl">

@@ -23,3 +23,4 @@ View your app in AI Studio: https://ai.studio/apps/drive/1of-5q8XEFbmKKg4WNnLD5z
 
 - Predictive dispatch & routing: uses live incident + responder locations to suggest pre-positioning, fastest safe routes, and reroute-aware ETAs on the dashboard.
 - Escalation playbooks: auto-generate SOPs per incident with owners, timers, skill needs, and gap alerts.
+- Dynamic trust + reputation: verifiable, time-decaying trust scores with attestations from missions, peer reviews, and ZK-backed ID/skill proofs.
