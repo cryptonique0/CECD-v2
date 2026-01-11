@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Incident, User, IncidentStatus, Severity, ChatMessage, PlaybookPlan, PlaybookStep } from '../types';
+import { Incident, User, IncidentStatus, Severity, ChatMessage, PlaybookPlan, PlaybookStep, CommsStructuredReport } from '../types';
 import { CATEGORY_ICONS, SEVERITY_COLORS, STATUS_COLORS } from '../constants';
 import { initialUsers } from '../mockData';
 import { baseVaultService } from '../services/baseVaultService';
@@ -17,6 +17,7 @@ import { disclosureService } from '../services/disclosureService';
 import { evidenceService, Evidence } from '../services/evidenceService';
 import { multiSigService, MultiSigProposal } from '../services/multiSigService';
 import { resourceLogisticsService, Asset } from '../services/resourceLogisticsService';
+import { commsCopilotService } from '../services/commsCopilotService';
 
 interface IncidentDetailProps {
   incidents: Incident[];
@@ -56,6 +57,10 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incidents, setIncidents
   const [lastEphemeralToken, setLastEphemeralToken] = useState<string | null>(null);
   const [disclosureAt, setDisclosureAt] = useState<string>('');
   const [incidentAssets, setIncidentAssets] = useState<Asset[]>([]);
+  const [transcriptText, setTranscriptText] = useState<string>('');
+  const [structuredReport, setStructuredReport] = useState<CommsStructuredReport | null>(null);
+  const [shiftSummary, setShiftSummary] = useState<{ summary: string; highlights: string[] } | null>(null);
+  const [lastBrief, setLastBrief] = useState<{ windowStart: number; items: { time: string; actor: string; action: string; details: string }[] } | null>(null);
 
   const chatEndRef = useRef<HTMLDivElement>(null);
 
@@ -484,6 +489,150 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incidents, setIncidents
                  </div>
               </div>
             )}
+          </section>
+
+          <section className="bg-card-dark rounded-2xl border border-border-dark p-6 flex flex-col gap-5">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-emerald-400">record_voice_over</span>
+                <div className="flex flex-col">
+                  <h3 className="text-lg font-bold text-white uppercase tracking-tight">Field Comms Copilot</h3>
+                  <p className="text-[10px] text-text-secondary font-black uppercase tracking-widest">Voice-to-structure, shift summaries, 30-min briefs</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="p-4 rounded-xl bg-background-dark border border-border-dark flex flex-col gap-3">
+                <p className="text-[10px] font-black text-text-secondary uppercase tracking-widest">Radio Transcript</p>
+                <textarea
+                  value={transcriptText}
+                  onChange={(e) => setTranscriptText(e.target.value)}
+                  className="w-full h-24 bg-slate-900 border border-border-dark rounded-lg px-3 py-2 text-sm text-white placeholder:text-text-secondary focus:ring-1 focus:ring-emerald-400 outline-none"
+                  placeholder="Paste or type field audio transcript here..."
+                />
+                <button
+                  onClick={() => {
+                    if (!transcriptText.trim()) { alert('Add transcript text'); return; }
+                    const res = commsCopilotService.parseVoiceToReport(transcriptText);
+                    setStructuredReport(res);
+                    const needs = (res.resourceNeeds || []).join(', ');
+                    const loc = res.locationName || (res.lat !== undefined && res.lng !== undefined ? `Lat ${res.lat}, Lng ${res.lng}` : '-');
+                    auditTrailService.recordEvent(incident.id, currentUser.name, 'VOICE_STRUCTURED', `Victims: ${res.victimsCount ?? '-'}; Needs: ${needs || '-'}; Location: ${loc}`);
+                  }}
+                  className="w-full py-2 rounded-xl bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-emerald-700 transition-all"
+                >
+                  Transcribe & Structure
+                </button>
+
+                {structuredReport && (
+                  <div className="mt-2 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30">
+                    <div className="flex items-center gap-2">
+                      <span className="material-symbols-outlined text-emerald-400 text-sm">analytics</span>
+                      <p className="text-[10px] font-black text-text-secondary uppercase tracking-widest">Structured Report</p>
+                    </div>
+                    <div className="mt-2 grid grid-cols-2 gap-2 text-[10px] text-white">
+                      <div>
+                        <p><span className="text-text-secondary">Category:</span> <span className="font-bold">{structuredReport.category || '-'}</span></p>
+                        <p><span className="text-text-secondary">Severity:</span> <span className="font-bold">{structuredReport.severity || '-'}</span></p>
+                      </div>
+                      <div>
+                        <p><span className="text-text-secondary">Victims:</span> {structuredReport.victimsCount ?? '-'}</p>
+                        <p><span className="text-text-secondary">Vehicles:</span> {structuredReport.vehiclesInvolved ?? '-'}</p>
+                      </div>
+                    </div>
+                    <div className="mt-2 grid grid-cols-2 gap-2 text-[10px] text-white">
+                      <div>
+                        <p><span className="text-text-secondary">Location:</span> {structuredReport.locationName || (structuredReport.lat !== undefined && structuredReport.lng !== undefined ? `Lat ${structuredReport.lat}, Lng ${structuredReport.lng}` : '-')}</p>
+                      </div>
+                      <div>
+                        <p className="text-text-secondary">Immediate Needs:</p>
+                        <div className="flex gap-1 flex-wrap">
+                          {(structuredReport.resourceNeeds || []).map(n => (
+                            <span key={n} className="px-2 py-0.5 rounded-lg bg-emerald-500/10 text-emerald-300 text-[9px] font-black uppercase tracking-widest border border-emerald-500/30">{n}</span>
+                          ))}
+                          {(structuredReport.resourceNeeds || []).length === 0 && (
+                            <span className="text-[9px] text-slate-500">None</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    {(structuredReport.actions || []).length > 0 && (
+                      <div className="mt-2">
+                        <p className="text-text-secondary text-[10px]">Suggested Actions:</p>
+                        <div className="flex gap-1 flex-wrap">
+                          {structuredReport.actions!.map(a => (
+                            <span key={a} className="px-2 py-0.5 rounded-lg bg-blue-500/10 text-blue-300 text-[9px] font-black uppercase tracking-widest border border-blue-500/30">{a}</span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div className="p-4 rounded-xl bg-background-dark border border-border-dark flex flex-col gap-3">
+                <p className="text-[10px] font-black text-text-secondary uppercase tracking-widest">Operational Briefs</p>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => {
+                      const s = commsCopilotService.generateShiftSummary(incident, Date.now() - 2 * 60 * 60 * 1000);
+                      setShiftSummary({ summary: s.summary, highlights: [] });
+                    }}
+                    className="flex-1 py-2 rounded-xl bg-slate-800 text-white text-[10px] font-black uppercase tracking-widest hover:bg-slate-700 transition-all"
+                  >
+                    Shift-Change Summary
+                  </button>
+                  <button
+                    onClick={() => {
+                      const b = commsCopilotService.generateLast30MinBrief(incident);
+                      setLastBrief({ windowStart: b.generatedAt - 30 * 60 * 1000, items: [] });
+                    }}
+                    className="flex-1 py-2 rounded-xl bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-emerald-700 transition-all"
+                  >
+                    Last 30-min Brief
+                  </button>
+                </div>
+
+                {shiftSummary && (
+                  <div className="mt-2 p-3 rounded-lg bg-slate-900 border border-border-dark">
+                    <p className="text-[10px] text-white font-bold">{shiftSummary.summary}</p>
+                    <div className="mt-2 flex gap-1 flex-wrap">
+                      {shiftSummary.highlights.map((h, i) => (
+                        <span key={i} className="px-2 py-0.5 rounded-lg bg-slate-800 text-text-secondary text-[9px] font-black uppercase border border-border-dark">{h}</span>
+                      ))}
+                      {shiftSummary.highlights.length === 0 && (
+                        <span className="text-[9px] text-slate-500">No highlights</span>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {lastBrief && (
+                  <div className="mt-2 p-3 rounded-lg bg-slate-900 border border-border-dark">
+                    <div className="flex items-center gap-2">
+                      <span className="material-symbols-outlined text-[14px] text-text-secondary">schedule</span>
+                      <p className="text-[10px] text-text-secondary">Window start: {new Date(lastBrief.windowStart).toLocaleTimeString()}</p>
+                    </div>
+                    <div className="mt-2 flex flex-col gap-2 max-h-40 overflow-y-auto">
+                      {lastBrief.items.map((it, idx) => (
+                        <div key={idx} className="p-2 rounded-lg bg-background-dark border border-border-dark text-[10px] text-white">
+                          <div className="flex items-center gap-2">
+                            <span className="px-2 py-0.5 rounded bg-slate-700 text-text-secondary font-black uppercase text-[8px]">{it.action}</span>
+                            <span className="text-text-secondary font-bold">{it.actor}</span>
+                            <span className="ml-auto text-text-secondary text-[9px]">{it.time}</span>
+                          </div>
+                          <p className="text-text-secondary text-[9px]">{it.details}</p>
+                        </div>
+                      ))}
+                      {lastBrief.items.length === 0 && (
+                        <span className="text-[9px] text-slate-500">No recent changes</span>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
           </section>
 
           {playbook && (
@@ -1439,6 +1588,105 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incidents, setIncidents
               </div>
             </div>
           </div>
+
+          {/* Comms Copilot */}
+          <div className="bg-card-dark rounded-2xl border border-border-dark p-5 flex flex-col gap-4">
+            <h4 className="text-xs font-bold text-text-secondary uppercase tracking-widest">Comms Copilot</h4>
+            <div className="flex flex-col gap-2">
+              <textarea
+                value={voiceTranscript}
+                onChange={(e) => setVoiceTranscript(e.target.value)}
+                className="w-full bg-background-dark border border-border-dark rounded-lg px-3 py-2 text-sm text-white placeholder:text-text-secondary focus:ring-1 focus:ring-primary outline-none"
+                placeholder="Paste transcribed field audio here..."
+                rows={3}
+              />
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    const r = commsCopilotService.parseVoiceToReport(voiceTranscript);
+                    setParsedReport(r);
+                    auditTrailService.recordEvent(incident.id, currentUser.name, 'VOICE_PARSED', 'Parsed field report to structured data');
+                  }}
+                  className="flex-1 py-2 rounded-xl bg-primary text-white text-[10px] font-black uppercase tracking-widest hover:bg-primary-dark transition-all"
+                >
+                  Parse to Report
+                </button>
+                <button
+                  onClick={() => {
+                    const brief = commsCopilotService.generateLast30MinBrief(incident);
+                    setLast30Brief(brief.brief);
+                  }}
+                  className="flex-1 py-2 rounded-xl bg-slate-800 text-white text-[10px] font-black uppercase tracking-widest hover:bg-slate-700 transition-all"
+                >
+                  Last 30 Min Brief
+                </button>
+              </div>
+              {parsedReport && (
+                <div className="p-3 rounded-xl bg-background-dark border border-border-dark flex flex-col gap-2">
+                  <p className="text-[10px] font-black text-text-secondary uppercase tracking-widest">Structured Report</p>
+                  <div className="flex flex-wrap gap-2">
+                    {parsedReport.category && <span className="px-2 py-1 rounded-lg bg-slate-800 text-[10px] text-white border border-border-dark">Category: {parsedReport.category}</span>}
+                    {parsedReport.severity && <span className="px-2 py-1 rounded-lg bg-accent-red/10 text-[10px] text-accent-red border border-accent-red/30">Severity: {parsedReport.severity}</span>}
+                    {parsedReport.locationName && <span className="px-2 py-1 rounded-lg bg-slate-800 text-[10px] text-white border border-border-dark">Location: {parsedReport.locationName}</span>}
+                    {parsedReport.lat !== undefined && parsedReport.lng !== undefined && (
+                      <span className="px-2 py-1 rounded-lg bg-slate-800 text-[10px] text-white border border-border-dark">Lat {parsedReport.lat}, Lng {parsedReport.lng}</span>
+                    )}
+                    {parsedReport.victimsCount !== undefined && <span className="px-2 py-1 rounded-lg bg-amber-500/10 text-[10px] text-amber-300 border border-amber-500/30">Victims: {parsedReport.victimsCount}</span>}
+                    {parsedReport.vehiclesInvolved !== undefined && <span className="px-2 py-1 rounded-lg bg-amber-500/10 text-[10px] text-amber-300 border border-amber-500/30">Vehicles: {parsedReport.vehiclesInvolved}</span>}
+                  </div>
+                  {parsedReport.resourceNeeds && parsedReport.resourceNeeds.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-text-secondary">Needs:</span>
+                      {parsedReport.resourceNeeds.map((n, i) => (
+                        <span key={i} className="px-2 py-1 rounded-lg bg-primary/10 text-[10px] text-primary border border-primary/30">{n}</span>
+                      ))}
+                    </div>
+                  )}
+                  {parsedReport.actions && parsedReport.actions.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-text-secondary">Actions:</span>
+                      {parsedReport.actions.map((a, i) => (
+                        <span key={i} className="px-2 py-1 rounded-lg bg-blue-500/10 text-[10px] text-blue-300 border border-blue-500/30">{a}</span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+              <div className="flex flex-col gap-2">
+                <p className="text-[10px] font-black text-text-secondary uppercase tracking-widest">Shift-Change Summary</p>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="datetime-local"
+                    value={shiftSince}
+                    onChange={(e) => setShiftSince(e.target.value)}
+                    className="bg-background-dark border border-border-dark rounded-lg px-2 py-1 text-[10px] text-white flex-1"
+                  />
+                  <button
+                    onClick={() => {
+                      if (!shiftSince) { alert('Select date/time'); return; }
+                      const ts = new Date(shiftSince).getTime();
+                      const s = commsCopilotService.generateShiftSummary(incident, ts);
+                      setShiftSummary(s.summary);
+                    }}
+                    className="py-2 px-3 rounded-xl bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-emerald-700 transition-all"
+                  >
+                    Generate
+                  </button>
+                </div>
+                {shiftSummary && (
+                  <div className="p-3 rounded-xl bg-background-dark border border-border-dark text-[10px] text-text-secondary">
+                    {shiftSummary}
+                  </div>
+                )}
+                {last30Brief && (
+                  <div className="p-3 rounded-xl bg-background-dark border border-border-dark text-[10px] text-text-secondary">
+                    {last30Brief}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
         </div>
       </div>
     </div>
