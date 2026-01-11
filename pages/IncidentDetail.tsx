@@ -105,6 +105,20 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incidents, setIncidents
     return () => clearInterval(id);
   }, []);
 
+  // Auto-publish scheduled disclosures
+  useEffect(() => {
+    const timer = setInterval(() => {
+      disclosureService.tickAutoPublish(
+        (incidentId: string) => incidents.find(i => i.id === incidentId),
+        (updated: Incident) => {
+          setIncident(updated);
+          setIncidents(prev => prev.map(i => i.id === updated.id ? updated : i));
+        }
+      );
+    }, 10000); // check every 10s
+    return () => clearInterval(timer);
+  }, [incidents, setIncidents]);
+
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatMessages]);
