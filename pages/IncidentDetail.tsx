@@ -678,7 +678,49 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incidents, setIncidents
                     <p className="text-[10px] text-text-secondary font-black uppercase tracking-widest">On-chain anchored audit trail</p>
                   </div>
                 </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={async () => {
+                      const anchor = await auditTrailService.anchorToChain(incident.id);
+                      alert(`Timeline anchored to chain:\nTx: ${anchor.txHash.slice(0, 10)}...\nBlock: ${anchor.blockNumber}`);
+                      setAuditTimeline(auditTrailService.getTimeline(incident.id));
+                    }}
+                    className="px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 hover:bg-cyan-500/20 transition-all"
+                  >
+                    Anchor
+                  </button>
+                  <button
+                    onClick={() => {
+                      const ok = auditTrailService.verifyTimeline(incident.id);
+                      alert(`Timeline integrity: ${ok ? '✓ VALID' : '✗ INVALID'}`);
+                    }}
+                    className="px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest bg-slate-800 text-white border border-border-dark hover:bg-slate-700 transition-all"
+                  >
+                    Verify
+                  </button>
+                  <button
+                    onClick={() => {
+                      const report = auditTrailService.exportTimeline(incident.id);
+                      console.log(report);
+                      alert(`Exported: ${report.eventCount} events\nRoot: ${report.rootHash.slice(0, 16)}...`);
+                    }}
+                    className="px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest bg-blue-600 text-white hover:bg-blue-700 transition-all shadow-glow-blue"
+                  >
+                    Export
+                  </button>
+                </div>
               </div>
+
+              {auditTimeline.lastAnchorTxHash && (
+                <div className="p-3 rounded-lg bg-cyan-500/10 border border-cyan-500/30 flex items-center gap-2">
+                  <span className="material-symbols-outlined text-cyan-400 text-sm">verified</span>
+                  <div className="flex-1 text-[10px] text-cyan-300 font-black">
+                    <p>Last anchor: Block {auditTimeline.lastAnchorBlock}</p>
+                    <p className="font-mono text-[9px] text-cyan-400">{auditTimeline.lastAnchorTxHash.slice(0, 20)}...</p>
+                  </div>
+                </div>
+              )}
+
               <div className="max-h-64 overflow-y-auto flex flex-col gap-2">
                 {auditTimeline.events.slice(-10).reverse().map((event) => (
                   <div key={event.id} className="p-3 rounded-lg bg-background-dark border border-border-dark text-[10px]">
@@ -693,6 +735,250 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incidents, setIncidents
               </div>
             </section>
           )}
+
+          <section className="bg-card-dark rounded-2xl border border-border-dark p-6 flex flex-col gap-5">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-amber-400">badge</span>
+                <div className="flex flex-col">
+                  <h3 className="text-lg font-bold text-white uppercase tracking-tight">Evidence & Chain-of-Custody</h3>
+                  <p className="text-[10px] text-text-secondary font-black uppercase tracking-widest">Signed uploads with custody tracking</p>
+                </div>
+              </div>
+              <span className="px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest bg-amber-500/10 text-amber-300 border border-amber-500/30">{evidence.length} items</span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="p-4 rounded-xl bg-background-dark border border-border-dark flex flex-col gap-3">
+                <p className="text-[10px] font-black text-text-secondary uppercase tracking-widest">Upload Evidence</p>
+                <input
+                  type="text"
+                  placeholder="File name (e.g., photo-001.jpg)"
+                  value={evidenceDescription}
+                  onChange={(e) => setEvidenceDescription(e.target.value)}
+                  className="w-full bg-slate-900 border border-border-dark rounded-lg px-3 py-2 text-sm text-white placeholder:text-text-secondary focus:ring-1 focus:ring-amber-400 outline-none"
+                />
+                <select
+                  value={evidenceCategory}
+                  onChange={(e) => setEvidenceCategory(e.target.value as any)}
+                  className="w-full bg-slate-900 border border-border-dark rounded-lg px-3 py-2 text-sm text-white focus:ring-1 focus:ring-amber-400 outline-none"
+                >
+                  <option value="photo">📷 Photo</option>
+                  <option value="video">🎥 Video</option>
+                  <option value="document">📄 Document</option>
+                  <option value="audio">🎙️ Audio</option>
+                  <option value="other">📦 Other</option>
+                </select>
+                <button
+                  onClick={() => {
+                    const newEvidence = evidenceService.uploadEvidence(
+                      incident.id,
+                      currentUser.name,
+                      evidenceDescription || 'evidence.dat',
+                      'application/octet-stream',
+                      Math.floor(Math.random() * 500) + 50,
+                      evidenceCategory,
+                      `Uploaded by ${currentUser.name}`
+                    );
+                    setEvidence(evidenceService.getIncidentEvidence(incident.id));
+                    auditTrailService.recordEvent(incident.id, currentUser.name, 'EVIDENCE_UPLOADED', evidenceDescription);
+                    setEvidenceDescription('');
+                    alert(`Evidence uploaded: ${newEvidence.id}`);
+                  }}
+                  className="w-full py-2 rounded-xl bg-amber-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-amber-700 transition-all shadow-glow-amber"
+                >
+                  Upload & Sign
+                </button>
+              </div>
+
+              <div className="p-4 rounded-xl bg-background-dark border border-border-dark flex flex-col gap-3">
+                <p className="text-[10px] font-black text-text-secondary uppercase tracking-widest">Recent Evidence</p>
+                <div className="flex flex-col gap-2 max-h-48 overflow-y-auto">
+                  {evidence.slice(-5).reverse().map((ev) => (
+                    <button
+                      key={ev.id}
+                      onClick={() => setSelectedEvidence(ev)}
+                      className={`p-2 rounded-lg border ${selectedEvidence?.id === ev.id ? 'bg-amber-500/10 border-amber-500/30' : 'bg-slate-900 border-border-dark'} text-left transition-all`}
+                    >
+                      <p className="text-[10px] font-bold text-white truncate">{ev.fileName}</p>
+                      <p className="text-[9px] text-text-secondary">{ev.category} • {ev.fileSizeKB}KB</p>
+                      <p className="text-[8px] text-amber-300">{ev.verified ? '✓ Verified' : '○ Pending'}</p>
+                    </button>
+                  ))}
+                  {evidence.length === 0 && (
+                    <p className="text-[10px] text-text-secondary italic">No evidence uploaded yet</p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {selectedEvidence && (
+              <div className="p-4 rounded-xl bg-amber-500/5 border border-amber-500/30 flex flex-col gap-3">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-sm font-bold text-white">{selectedEvidence.fileName}</p>
+                    <p className="text-[10px] text-text-secondary mt-1">
+                      Uploaded by {selectedEvidence.uploader} • {selectedEvidence.fileSizeKB}KB • {selectedEvidence.category}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setSelectedEvidence(null)}
+                    className="text-text-secondary hover:text-white transition-colors"
+                  >
+                    <span className="material-symbols-outlined text-sm">close</span>
+                  </button>
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <p className="text-[10px] font-black text-text-secondary uppercase tracking-widest">Chain of Custody</p>
+                  {selectedEvidence.chainOfCustody.map((entry, idx) => (
+                    <div key={idx} className="p-2 rounded-lg bg-slate-900 border border-border-dark text-[9px] flex items-start gap-2">
+                      <span className="material-symbols-outlined text-[12px] text-amber-400 flex-shrink-0 mt-0.5">
+                        {entry.action === 'uploaded' ? 'upload' : entry.action === 'verified' ? 'verified' : entry.action === 'transferred' ? 'send' : 'archive'}
+                      </span>
+                      <div className="flex-1">
+                        <p className="text-text-secondary font-bold">{entry.actor}</p>
+                        <p className="text-text-secondary">{entry.notes}</p>
+                        <p className="text-[8px] text-slate-500 mt-0.5">{new Date(entry.timestamp).toLocaleString()}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      const result = evidenceService.verifyEvidence(incident.id, selectedEvidence.id);
+                      alert(`Verification: ${result.verified ? '✓ VALID' : '✗ INVALID'}\nMessage: ${result.message}`);
+                      setEvidence(evidenceService.getIncidentEvidence(incident.id));
+                    }}
+                    className="flex-1 py-1.5 rounded-lg bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-emerald-700 transition-all text-center"
+                  >
+                    Verify Integrity
+                  </button>
+                  <button
+                    onClick={() => {
+                      evidenceService.archiveEvidence(incident.id, selectedEvidence.id, currentUser.name);
+                      setEvidence(evidenceService.getIncidentEvidence(incident.id));
+                      setSelectedEvidence(null);
+                      alert('Evidence archived');
+                    }}
+                    className="flex-1 py-1.5 rounded-lg bg-slate-700 text-white text-[10px] font-black uppercase tracking-widest hover:bg-slate-600 transition-all text-center"
+                  >
+                    Archive
+                  </button>
+                </div>
+              </div>
+            )}
+          </section>
+
+          {criticalProposals.length > 0 && (
+            <section className="bg-card-dark rounded-2xl border border-border-dark p-6 flex flex-col gap-5">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-red-500">security</span>
+                  <div className="flex flex-col">
+                    <h3 className="text-lg font-bold text-white uppercase tracking-tight">Critical Action Approvals</h3>
+                    <p className="text-[10px] text-text-secondary font-black uppercase tracking-widest">Multi-sig consensus required</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-3">
+                {criticalProposals.map((prop) => (
+                  <div key={prop.id} className="p-4 rounded-xl border border-red-500/30 bg-red-500/5 flex flex-col gap-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <p className="text-sm font-bold text-white">{prop.description}</p>
+                        <p className="text-[10px] text-text-secondary mt-1">
+                          {prop.type.replace(/_/g, ' ')} • Proposed by {prop.proposedBy}
+                        </p>
+                        {prop.amount && (
+                          <p className="text-[10px] text-amber-300 font-bold mt-1">{prop.amount} {prop.currency}</p>
+                        )}
+                      </div>
+                      <span className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border ${
+                        prop.status === 'Pending' ? 'bg-amber-500/10 text-amber-300 border-amber-500/30' :
+                        prop.status === 'Approved' ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30' :
+                        'bg-red-500/10 text-red-300 border-red-500/30'
+                      }`}>
+                        {prop.status}
+                      </span>
+                    </div>
+
+                    <div className="p-2 rounded-lg bg-background-dark border border-border-dark">
+                      <p className="text-[9px] font-black text-text-secondary uppercase tracking-widest mb-2">Signatures: {prop.signatures}/{prop.required}</p>
+                      <div className="flex gap-1">
+                        {Array.from({length: prop.required}).map((_, i) => (
+                          <div key={i} className={`h-2 flex-1 rounded-full ${i < prop.signatures ? 'bg-emerald-500' : 'bg-slate-700'}`}></div>
+                        ))}
+                      </div>
+                      <div className="mt-2 flex flex-wrap gap-1">
+                        {prop.signers.map((signer) => (
+                          <span key={signer.actor} className="px-2 py-0.5 rounded-lg bg-emerald-500/10 text-emerald-300 text-[8px] font-black uppercase tracking-widest border border-emerald-500/30">
+                            ✓ {signer.actor.split('-')[0]}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+
+                    {prop.status === 'Pending' && (
+                      <button
+                        onClick={() => {
+                          try {
+                            multiSigService.signTransaction(prop.id, currentUser.name);
+                            setCriticalProposals(multiSigService.getIncidentProposals(incident.id));
+                            auditTrailService.recordEvent(incident.id, currentUser.name, 'CRITICAL_ACTION_SIGNED', `Signed: ${prop.id}`);
+                            alert(`You signed proposal ${prop.id}`);
+                          } catch (err: any) {
+                            alert('Error: ' + err.message);
+                          }
+                        }}
+                        className="w-full py-2 rounded-xl bg-red-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-red-700 transition-all shadow-glow-red"
+                      >
+                        Sign Approval
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          <div className="flex gap-3">
+            <button
+              onClick={() => {
+                multiSigService.proposeCriticalAction(
+                  incident.id,
+                  'fund_release',
+                  currentUser.name,
+                  'Emergency fund release for immediate response',
+                  '5.0',
+                  'ETH'
+                );
+                setCriticalProposals(multiSigService.getIncidentProposals(incident.id));
+                alert('Critical action proposed and recorded in audit trail');
+              }}
+              className="px-4 py-2 rounded-lg bg-red-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-red-700 transition-all shadow-glow-red"
+            >
+              Propose Fund Release
+            </button>
+            <button
+              onClick={() => {
+                multiSigService.proposeCriticalAction(
+                  incident.id,
+                  'evacuation',
+                  currentUser.name,
+                  'Evacuate affected zone - multi-sig authorization required'
+                );
+                setCriticalProposals(multiSigService.getIncidentProposals(incident.id));
+                alert('Evacuation order proposed for multi-sig approval');
+              }}
+              className="px-4 py-2 rounded-lg bg-accent-red text-white text-[10px] font-black uppercase tracking-widest hover:bg-red-700 transition-all"
+            >
+              Propose Evacuation
+            </button>
+          </div
 
           <section id="donation-section" className="bg-gradient-to-br from-primary/10 to-emerald-500/5 rounded-2xl border border-primary/20 p-8 flex flex-col md:flex-row items-center gap-8">
             <div className="flex flex-col gap-3 flex-1">
