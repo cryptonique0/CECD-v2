@@ -113,3 +113,14 @@ export interface Donation {
   donorId: string;
   timestamp: number;
 }
+
+export interface ChatMessage {
+  id: string;
+  incidentId: string;
+  senderId: string;
+  text?: string;
+  ciphertext?: string;
+  isSecure?: boolean;
+  isSystem?: boolean;
+  timestamp: number;
+}

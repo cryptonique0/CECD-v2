@@ -141,13 +141,39 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incidents, setIncidents
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputText.trim()) return;
-    const newMessage: ChatMessage = {
-      id: Date.now().toString(),
-      incidentId: incident.id,
-      senderId: currentUser.id,
-      text: inputText,
-      timestamp: Date.now(),
-    };
+    let newMessage: ChatMessage;
+    try {
+      const token = lastEphemeralToken;
+      const canSecure = token ? secureRoomService.validateKey(incident.id, token) : false;
+      if (canSecure) {
+        const ct = secureRoomService.encrypt(incident.id, inputText, token!);
+        newMessage = {
+          id: Date.now().toString(),
+          incidentId: incident.id,
+          senderId: currentUser.id,
+          ciphertext: ct,
+          isSecure: true,
+          timestamp: Date.now(),
+        };
+        auditTrailService.recordEvent(incident.id, currentUser.name, 'SECURE_MSG_SENT', 'Encrypted message sent');
+      } else {
+        newMessage = {
+          id: Date.now().toString(),
+          incidentId: incident.id,
+          senderId: currentUser.id,
+          text: inputText,
+          timestamp: Date.now(),
+        };
+      }
+    } catch (err) {
+      newMessage = {
+        id: Date.now().toString(),
+        incidentId: incident.id,
+        senderId: currentUser.id,
+        text: inputText,
+        timestamp: Date.now(),
+      };
+    }
     setChatMessages([...chatMessages, newMessage]);
     setInputText('');
   };
@@ -1145,26 +1171,43 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incidents, setIncidents
               </h3>
             </div>
             <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-background-dark/20 custom-scrollbar">
-              {chatMessages.map(msg => (
-                <div key={msg.id} className={`flex gap-3 ${msg.senderId === currentUser.id ? 'flex-row-reverse' : ''} ${msg.isSystem ? 'justify-center w-full' : ''}`}>
+              {chatMessages.map(msg => {
+                const isMine = msg.senderId === currentUser.id;
+                const isSecure = msg.isSecure && msg.ciphertext;
+                let displayText = msg.text || '';
+                if (isSecure) {
+                  const token = lastEphemeralToken;
+                  try {
+                    if (token && secureRoomService.validateKey(incident.id, token)) {
+                      displayText = secureRoomService.decrypt(incident.id, msg.ciphertext!, token);
+                    } else {
+                      displayText = '[Encrypted]';
+                    }
+                  } catch {
+                    displayText = '[Encrypted]';
+                  }
+                }
+                return (
+                <div key={msg.id} className={`flex gap-3 ${isMine ? 'flex-row-reverse' : ''} ${msg.isSystem ? 'justify-center w-full' : ''}`}>
                   {!msg.isSystem && <div className="size-8 rounded-full bg-slate-800 bg-cover shrink-0 border border-white/10" style={{ backgroundImage: `url(https://picsum.photos/seed/${msg.senderId}/100/100)` }}></div>}
-                  <div className={`flex flex-col gap-1 ${msg.isSystem ? 'w-full items-center' : msg.senderId === currentUser.id ? 'items-end max-w-[70%]' : 'max-w-[70%]'}`}>
+                  <div className={`flex flex-col gap-1 ${msg.isSystem ? 'w-full items-center' : isMine ? 'items-end max-w-[70%]' : 'max-w-[70%]'}`}>
                     {!msg.isSystem && (
                       <div className="flex items-center gap-2 text-[10px] text-text-secondary font-bold">
                         <span>{initialUsers.find(u => u.id === msg.senderId)?.name || 'Responser'}</span>
+                        {isSecure && <span className="material-symbols-outlined text-[12px] text-cyan-400" title="Secure">encrypted</span>}
                       </div>
                     )}
                     <div className={`p-3 text-sm leading-relaxed rounded-2xl ${
                       msg.isSystem ? 'bg-primary/10 text-primary border border-primary/20 text-center text-[10px] font-black uppercase italic' :
-                      msg.senderId === currentUser.id 
+                      isMine 
                         ? 'bg-primary text-white rounded-tr-none shadow-glow' 
                         : 'bg-card-hover text-text-primary rounded-tl-none border border-border-dark'
                     }`}>
-                      {msg.text}
+                      {displayText}
                     </div>
                   </div>
                 </div>
-              ))}
+              )})}
               <div ref={chatEndRef} />
             </div>
             <form onSubmit={handleSendMessage} className="p-4 bg-[#111a22] border-t border-border-dark flex items-center gap-3">
