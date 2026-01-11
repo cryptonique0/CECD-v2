@@ -1,9 +1,10 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Incident, Severity, IncidentStatus, IncidentCategory, User } from '../types';
+import { Incident, Severity, IncidentStatus, IncidentCategory, User, Role } from '../types';
 import { SEVERITY_COLORS, STATUS_COLORS, CATEGORY_ICONS } from '../constants';
 import { useNavigate } from 'react-router-dom';
 import { analyticsService } from '../services/analyticsService';
 import { buildPredictiveDispatches, DispatchSuggestion } from '../services/routingService';
+import { hazardLayersService, LeafletLayer } from '../services/hazardLayersService';
 
 declare const L: any;
 
@@ -31,10 +32,12 @@ const Dashboard: React.FC<DashboardProps> = ({ incidents, volunteers = [], curre
   const volunteerMarkersRef = useRef<{ [key: string]: any }>({});
   const zonesRef = useRef<{ [key: string]: any }>({});
   const heatmapLayersRef = useRef<any[]>([]);
+  const situationalLayersRef = useRef<Record<string, LeafletLayer[]>>({});
   
   const [riskAreas, setRiskAreas] = useState<any[]>([]);
   const [showHeatmap, setShowHeatmap] = useState(false);
   const predictiveDispatches = useMemo<DispatchSuggestion[]>(() => buildPredictiveDispatches(incidents, volunteers), [incidents, volunteers]);
+  const [visibleLayers, setVisibleLayers] = useState<{ weather: boolean; flood: boolean; aqi: boolean; roads: boolean; shelters: boolean; hospitals: boolean }>({ weather: false, flood: false, aqi: false, roads: false, shelters: false, hospitals: false });
   
   // Tactical Modal State (Now used for explicit preview actions if needed, or can be removed)
   const [previewIncident, setPreviewIncident] = useState<Incident | null>(null);
@@ -98,6 +101,22 @@ const Dashboard: React.FC<DashboardProps> = ({ incidents, volunteers = [], curre
       }
     };
   }, []);
+
+  // 1b. Role-based default layers
+  useEffect(() => {
+    if (!currentUser?.role) return;
+    const defaults: Record<Role, Partial<typeof visibleLayers>> = {
+      [Role.CITIZEN]: { shelters: true, hospitals: true },
+      [Role.VOLUNTEER]: { shelters: true, hospitals: true, roads: true },
+      [Role.COMMUNITY_LEADER]: { shelters: true, hospitals: true, roads: true, flood: true },
+      [Role.EMERGENCY_DESK]: { weather: true, roads: true, shelters: true, hospitals: true },
+      [Role.DISPATCHER]: { weather: true, roads: true, shelters: true, hospitals: true, flood: true },
+      [Role.ANALYST]: { weather: true, flood: true, aqi: true, roads: true, shelters: true, hospitals: true },
+      [Role.FIELD_OPERATOR]: { roads: true, shelters: true, hospitals: true },
+      [Role.OWNER]: { weather: true, flood: true, aqi: true, roads: true, shelters: true, hospitals: true }
+    };
+    setVisibleLayers(prev => ({ ...prev, ...defaults[currentUser.role] } as any));
+  }, [currentUser?.role]);
 
   // 2. Sync User Location Marker
   useEffect(() => {
@@ -317,6 +336,49 @@ const Dashboard: React.FC<DashboardProps> = ({ incidents, volunteers = [], curre
     analyticsService.getRiskHeatmap().then(setRiskAreas);
   }, []);
 
+  // 6. Situational Layers Toggle Logic
+  const toggleLayer = async (key: keyof typeof visibleLayers) => {
+    if (!mapRef.current) return;
+    const next = { ...visibleLayers, [key]: !visibleLayers[key] };
+    setVisibleLayers(next);
+    // Remove existing
+    if (situationalLayersRef.current[key]) {
+      hazardLayersService.removeLayers(situationalLayersRef.current[key]);
+      situationalLayersRef.current[key] = [];
+    }
+    // Add if now visible
+    if (next[key]) {
+      let layers: LeafletLayer[] = [];
+      if (key === 'weather') {
+        layers = hazardLayersService.addWeatherRadar(mapRef.current, L, currentUser?.lat && currentUser?.lng ? { lat: currentUser.lat!, lng: currentUser.lng! } : undefined);
+      } else if (key === 'flood') {
+        layers = hazardLayersService.addFloodZones(mapRef.current, L, currentUser?.lat && currentUser?.lng ? { lat: currentUser.lat!, lng: currentUser.lng! } : undefined);
+      } else if (key === 'aqi') {
+        const cities = [
+          { name: 'New York', lat: 40.7128, lng: -74.0060, aqi: 65 + Math.floor(Math.random() * 100) },
+          { name: 'London', lat: 51.5074, lng: -0.1278, aqi: 40 + Math.floor(Math.random() * 120) },
+          { name: 'Beijing', lat: 39.9042, lng: 116.4074, aqi: 80 + Math.floor(Math.random() * 150) }
+        ];
+        layers = hazardLayersService.addAQI(mapRef.current, L, cities);
+      } else if (key === 'roads') {
+        layers = hazardLayersService.addRoadClosures(mapRef.current, L, incidents);
+      } else if (key === 'shelters') {
+        const anchors = [
+          { name: 'Community Shelter A', lat: (currentUser?.lat ?? 20) + 0.12, lng: (currentUser?.lng ?? 0) - 0.08, capacity: 120 },
+          { name: 'Relief Center B', lat: (currentUser?.lat ?? 20) - 0.22, lng: (currentUser?.lng ?? 0) + 0.14, capacity: 60 }
+        ];
+        layers = hazardLayersService.addShelters(mapRef.current, L, anchors);
+      } else if (key === 'hospitals') {
+        const anchors = [
+          { name: 'General Hospital', lat: (currentUser?.lat ?? 20) + 0.05, lng: (currentUser?.lng ?? 0) + 0.09, beds: 25 },
+          { name: 'Trauma Center', lat: (currentUser?.lat ?? 20) - 0.1, lng: (currentUser?.lng ?? 0) - 0.12, beds: 12 }
+        ];
+        layers = hazardLayersService.addHospitals(mapRef.current, L, anchors);
+      }
+      situationalLayersRef.current[key] = layers;
+    }
+  };
+
   const stats = [
     { label: 'Active Alerts', value: incidents.filter(i => i.status !== IncidentStatus.CLOSED).length, trend: '+2h', color: 'primary', icon: 'campaign' },
     { label: 'Global Responders', value: volunteers.length + 2440, trend: '+12%', color: 'accent-green', icon: 'groups' },
@@ -485,6 +547,35 @@ const Dashboard: React.FC<DashboardProps> = ({ incidents, volunteers = [], curre
                     <div className={`h-full rounded-full transition-all duration-1000 ${area.riskLevel === 'Critical' ? 'bg-accent-red shadow-glow-red' : 'bg-accent-green'}`} style={{ width: area.riskLevel === 'Critical' ? '85%' : '25%' }}></div>
                   </div>
                 </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Situational Layers Toggle Panel */}
+          <div className="absolute bottom-8 right-8 z-[1000] bg-card-dark/95 backdrop-blur-xl p-6 rounded-[2.5rem] border border-border-dark w-72 shadow-2xl pointer-events-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h4 className="text-[10px] font-black text-white uppercase tracking-widest italic flex items-center gap-2">
+                <span className="material-symbols-outlined text-primary text-sm">layers</span> Situational Layers
+              </h4>
+              <span className="text-[9px] text-text-secondary uppercase font-bold">Role: {currentUser?.role}</span>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              {([
+                { key: 'weather', label: 'Weather Radar', icon: 'radar' },
+                { key: 'flood', label: 'Flood Zones', icon: 'water' },
+                { key: 'aqi', label: 'Air Quality', icon: 'air' },
+                { key: 'roads', label: 'Road Closures', icon: 'sign' },
+                { key: 'shelters', label: 'Shelters', icon: 'home' },
+                { key: 'hospitals', label: 'Hospitals', icon: 'local_hospital' }
+              ] as Array<{ key: keyof typeof visibleLayers; label: string; icon: string }>).map(item => (
+                <button
+                  key={item.key as string}
+                  onClick={() => toggleLayer(item.key)}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-xl text-[10px] font-bold uppercase border transition-all ${visibleLayers[item.key] ? 'bg-primary/10 border-primary/30 text-white' : 'bg-slate-800 border-border-dark text-white/60 hover:text-white'}`}
+                >
+                  <span className="material-symbols-outlined text-[14px]">{item.icon}</span>
+                  {item.label}
+                </button>
               ))}
             </div>
           </div>
