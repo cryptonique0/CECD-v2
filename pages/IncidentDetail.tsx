@@ -8,6 +8,8 @@ import { zkService } from '../services/zkService';
 import { notificationService } from '../services/notificationService';
 import { playbookService } from '../services/playbookService';
 import { volunteerOptimizationService, SuggestedSquad, HandoffSuggestion } from '../services/volunteerOptimizationService';
+import { stepDonationsService } from '../services/stepDonationsService';
+import { auditTrailService } from '../services/auditTrailService';
 import { auditTrailService, AuditEvent, IncidentTimeline } from '../services/auditTrailService';
 import { evidenceService, Evidence } from '../services/evidenceService';
 import { multiSigService, MultiSigProposal } from '../services/multiSigService';
@@ -526,6 +528,93 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incidents, setIncidents
                           <span className="material-symbols-outlined text-[14px]">check_circle</span>
                           Done
                         </button>
+                      </div>
+
+                      {/* Donations to Actions: Micro-grants per step */}
+                      <div className="mt-2 p-3 rounded-xl bg-primary/5 border border-primary/20 flex flex-col gap-2">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="material-symbols-outlined text-primary text-[16px]">volunteer_activism</span>
+                            <p className="text-[10px] font-black text-text-secondary uppercase tracking-widest">Support This Step</p>
+                          </div>
+                          <div className="text-right text-[10px] text-text-secondary">
+                            {/* Totals by currency */}
+                            <span className="font-bold">ETH {stepDonationsService.getTotals(incident.id, step.id).ETH.toFixed(2)}</span>
+                            <span className="ml-2 font-bold">USDC {stepDonationsService.getTotals(incident.id, step.id).USDC.toFixed(2)}</span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {step.resourcesNeeded.slice(0,3).map(res => (
+                            <button
+                              key={res}
+                              onClick={() => {
+                                stepDonationsService.pledgeDonation(
+                                  incident.id,
+                                  step.id,
+                                  currentUser.name,
+                                  donationCurrency === 'ETH' ? parseFloat(donationAmount || '0.05') : parseFloat(donationAmount || '10'),
+                                  donationCurrency,
+                                  res
+                                );
+                                auditTrailService.recordEvent(incident.id, currentUser.name, 'STEP_DONATION_PLEDGED', `${res} → ${donationAmount || '0.05'} ${donationCurrency}`);
+                                alert(`Pledged ${donationAmount} ${donationCurrency} for ${res}`);
+                              }}
+                              className="px-2 py-1 rounded-lg bg-primary/10 text-primary text-[10px] font-black uppercase tracking-widest border border-primary/30 hover:bg-primary/20 transition-all"
+                            >
+                              Fund {res}
+                            </button>
+                          ))}
+                          <div className="flex items-center gap-2 ml-auto">
+                            <select
+                              value={donationCurrency}
+                              onChange={(e) => setDonationCurrency(e.target.value as 'ETH' | 'USDC')}
+                              className="bg-background-dark border border-border-dark rounded-lg px-2 py-1 text-[10px] text-white"
+                            >
+                              <option value="ETH">ETH</option>
+                              <option value="USDC">USDC</option>
+                            </select>
+                            <input
+                              type="number"
+                              step={donationCurrency === 'ETH' ? '0.01' : '1'}
+                              value={donationAmount}
+                              onChange={(e) => setDonationAmount(e.target.value)}
+                              className="w-24 bg-background-dark border border-border-dark rounded-lg px-2 py-1 text-[10px] text-white"
+                              placeholder="0.05"
+                            />
+                            <button
+                              onClick={() => {
+                                stepDonationsService.pledgeDonation(
+                                  incident.id,
+                                  step.id,
+                                  currentUser.name,
+                                  donationCurrency === 'ETH' ? parseFloat(donationAmount || '0.05') : parseFloat(donationAmount || '10'),
+                                  donationCurrency,
+                                  'General'
+                                );
+                                auditTrailService.recordEvent(incident.id, currentUser.name, 'STEP_DONATION_PLEDGED', `General → ${donationAmount || '0.05'} ${donationCurrency}`);
+                                alert(`Pledged ${donationAmount} ${donationCurrency} to this step`);
+                              }}
+                              className="px-2 py-1 rounded-lg bg-primary text-white text-[10px] font-black uppercase tracking-widest hover:bg-primary/90 transition-all"
+                            >
+                              Pledge
+                            </button>
+                          </div>
+                        </div>
+
+                        {step.status === 'Done' && (
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={async () => {
+                                const res = await stepDonationsService.verifyMilestoneAndDisburse(incident.id, step.id, currentUser.name);
+                                alert(`Disbursed ${res.disbursed} pledges. ETH ${res.currencyBreakdown.ETH.toFixed(2)} | USDC ${res.currencyBreakdown.USDC.toFixed(2)}`);
+                              }}
+                              className="flex-1 py-2 rounded-xl bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-emerald-700 transition-all"
+                            >
+                              Verify Milestone & Disburse
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   );
