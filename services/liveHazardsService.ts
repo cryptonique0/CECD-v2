@@ -22,6 +22,21 @@ function bboxFromCenter(lat: number, lng: number, delta = 0.2) {
   return `${lat - delta},${lng - delta},${lat + delta},${lng + delta}`;
 }
 
+async function fetchWithBackoff(url: string, options: RequestInit, attempts = 3, baseDelay = 500): Promise<Response> {
+  let lastErr: any;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      const res = await fetch(url, options);
+      if (res.ok) return res;
+      lastErr = new Error(`HTTP ${res.status}`);
+    } catch (e) {
+      lastErr = e;
+    }
+    await new Promise(r => setTimeout(r, baseDelay * Math.pow(2, i)));
+  }
+  throw lastErr;
+}
+
 export const liveHazardsService = {
   addNOAARadarWMS(map: any, L: any): LeafletLayer[] {
     const wms = L.tileLayer.wms('https://mesonet.agron.iastate.edu/cgi-bin/wms/nexrad/n0r.cgi', {
@@ -40,7 +55,7 @@ export const liveHazardsService = {
     if (cached && Date.now() - cached.ts < TEN_MIN) {
       data = cached.data;
     } else {
-      const res = await fetch(url);
+      const res = await fetchWithBackoff(url, { method: 'GET' }, 3, 500);
       if (!res.ok) throw new Error('Flood GeoJSON fetch failed');
       data = await res.json();
       floodCache[url] = { data, ts: Date.now() };
@@ -65,7 +80,7 @@ export const liveHazardsService = {
       aqi = cached.data;
     } else {
       const url = `https://api.waqi.info/feed/geo:${center.lat};${center.lng}/?token=${token}`;
-      const res = await fetch(url);
+      const res = await fetchWithBackoff(url, { method: 'GET' }, 3, 500);
       if (!res.ok) throw new Error('WAQI fetch failed');
       const json = await res.json();
       aqi = json?.data?.aqi ?? 50;
@@ -87,7 +102,7 @@ export const liveHazardsService = {
     if (cached && Date.now() - cached.ts < FIVE_MIN) {
       data = cached.data;
     } else {
-      const res = await fetch('https://overpass-api.de/api/interpreter', { method: 'POST', body: query, headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
+      const res = await fetchWithBackoff('https://overpass-api.de/api/interpreter', { method: 'POST', body: query, headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }, 3, 700);
       if (!res.ok) throw new Error('Overpass road closures fetch failed');
       data = await res.json();
       overpassCache[cacheKey] = { data, ts: Date.now() };
@@ -115,7 +130,7 @@ export const liveHazardsService = {
     if (cached && Date.now() - cached.ts < TEN_MIN) {
       data = cached.data;
     } else {
-      const res = await fetch('https://overpass-api.de/api/interpreter', { method: 'POST', body: query, headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
+      const res = await fetchWithBackoff('https://overpass-api.de/api/interpreter', { method: 'POST', body: query, headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }, 3, 700);
       if (!res.ok) throw new Error('Overpass shelters fetch failed');
       data = await res.json();
       overpassCache[cacheKey] = { data, ts: Date.now() };
@@ -140,7 +155,7 @@ export const liveHazardsService = {
     if (cached && Date.now() - cached.ts < TEN_MIN) {
       data = cached.data;
     } else {
-      const res = await fetch('https://overpass-api.de/api/interpreter', { method: 'POST', body: query, headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
+      const res = await fetchWithBackoff('https://overpass-api.de/api/interpreter', { method: 'POST', body: query, headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }, 3, 700);
       if (!res.ok) throw new Error('Overpass hospitals fetch failed');
       data = await res.json();
       overpassCache[cacheKey] = { data, ts: Date.now() };

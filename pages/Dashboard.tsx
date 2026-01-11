@@ -104,7 +104,7 @@ const Dashboard: React.FC<DashboardProps> = ({ incidents, volunteers = [], curre
     };
   }, []);
 
-  // 1b. Role-based default layers
+  // 1b. Role-based default layers with localStorage persistence per role
   useEffect(() => {
     if (!currentUser?.role) return;
     const defaults: Record<Role, Partial<typeof visibleLayers>> = {
@@ -117,7 +117,17 @@ const Dashboard: React.FC<DashboardProps> = ({ incidents, volunteers = [], curre
       [Role.FIELD_OPERATOR]: { roads: true, shelters: true, hospitals: true },
       [Role.OWNER]: { weather: true, flood: true, aqi: true, roads: true, shelters: true, hospitals: true }
     };
-    setVisibleLayers(prev => ({ ...prev, ...defaults[currentUser.role] } as any));
+    try {
+      const key = `cecd.layerPrefs.${currentUser.role}`;
+      const persisted = localStorage.getItem(key);
+      if (persisted) {
+        setVisibleLayers(JSON.parse(persisted));
+      } else {
+        setVisibleLayers(prev => ({ ...prev, ...defaults[currentUser.role] } as any));
+      }
+    } catch {
+      setVisibleLayers(prev => ({ ...prev, ...defaults[currentUser.role] } as any));
+    }
   }, [currentUser?.role]);
 
   // 2. Sync User Location Marker
@@ -343,6 +353,12 @@ const Dashboard: React.FC<DashboardProps> = ({ incidents, volunteers = [], curre
     if (!mapRef.current) return;
     const next = { ...visibleLayers, [key]: !visibleLayers[key] };
     setVisibleLayers(next);
+    // Persist per-role preferences
+    try {
+      if (currentUser?.role) {
+        localStorage.setItem(`cecd.layerPrefs.${currentUser.role}`, JSON.stringify(next));
+      }
+    } catch {}
     // Remove existing
     if (situationalLayersRef.current[key]) {
       hazardLayersService.removeLayers(situationalLayersRef.current[key]);
