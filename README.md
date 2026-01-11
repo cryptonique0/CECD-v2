@@ -182,3 +182,36 @@ If a source is unavailable, the app gracefully falls back to simulated overlays.
 - Signatures are simulated (production: ECDSA with web3.js)
 - On-chain anchoring simulated (production: contract interaction on Base)
 - Evidence metadata immutable; file storage separate (IPFS/Arweave in production)
+
+### 10. Donations to Actions: Step Micro-Grants
+
+**Purpose**: Enable directed micro-grants for specific playbook steps (e.g., fuel, PPE, tools), show impact receipts, and disburse funds only after milestone verification for strong transparency and trust.
+
+**Key Components**:
+- **Step Donations Service** ([services/stepDonationsService.ts](services/stepDonationsService.ts)):
+  - `pledgeDonation()`: Record pledges tied to an incident step with item, amount, currency, and optional note
+  - `addReceipt()`: Attach impact receipts (proof of spend, images/notes) to pledges
+  - `verifyMilestoneAndDisburse()`: On step completion, verify milestone and route disbursements on Base (simulated via vault service)
+  - `getTotals()`: Aggregate pledged totals per currency for quick visibility
+- **Audit Trail Integration** ([services/auditTrailService.ts](services/auditTrailService.ts)):
+  - Pledge and disbursement events recorded in the immutable timeline for end-to-end traceability
+
+**UI Features** ([pages/IncidentDetail.tsx](pages/IncidentDetail.tsx)):
+- Per-playbook step section shows:
+  - Quick pledge buttons for common resource items (e.g., fuel, PPE)
+  - Custom pledge input (amount, currency, note)
+  - Totals by currency for the step
+  - "Verify Milestone & Disburse" appears when the step status is Done (runs verification + disbursement)
+- Receipts are displayed after disbursement with timestamps and references
+
+**Example Workflow**:
+1. Dispatcher identifies a step requiring resources (e.g., "Fuel for transport")
+2. Supporters pledge micro-grants for the step via UI
+3. Step owner completes the task → mark status Done
+4. Click "Verify Milestone & Disburse" → funds are routed (simulated), receipts recorded
+5. Audit trail logs pledges and disbursement; totals update
+
+**Notes**:
+- Disbursement uses `baseVaultService` simulation (production: Base contract interaction)
+- Receipts can include references to uploads/evidence; attach via `addReceipt()`
+- Totals are per-step; aggregation across incident is supported via service helpers

@@ -75,6 +75,17 @@ export interface Incident {
   isWhisperMode?: boolean;
   zkProof?: string;
   pendingSync?: boolean;
+  // Privacy & disclosure
+  isSensitive?: boolean;
+  redactionReason?: string;
+  locationRedaction?: 'none' | 'coarse' | 'hidden';
+  secureRoomId?: string;
+  ephemeralKeyId?: string;
+  disclosure?: {
+    scheduledAt?: number;
+    isPublic?: boolean;
+    summary?: string;
+  };
 }
 
 export interface PlaybookStep {

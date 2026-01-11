@@ -11,6 +11,9 @@ import { volunteerOptimizationService, SuggestedSquad, HandoffSuggestion } from 
 import { stepDonationsService } from '../services/stepDonationsService';
 import { auditTrailService } from '../services/auditTrailService';
 import { auditTrailService, AuditEvent, IncidentTimeline } from '../services/auditTrailService';
+import { secureRoomService } from '../services/secureRoomService';
+import { incidentPrivacyService } from '../services/incidentPrivacyService';
+import { disclosureService } from '../services/disclosureService';
 import { evidenceService, Evidence } from '../services/evidenceService';
 import { multiSigService, MultiSigProposal } from '../services/multiSigService';
 
@@ -49,6 +52,8 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incidents, setIncidents
   const [selectedEvidence, setSelectedEvidence] = useState<Evidence | null>(null);
   const [evidenceDescription, setEvidenceDescription] = useState('');
   const [evidenceCategory, setEvidenceCategory] = useState<'photo' | 'video' | 'document' | 'audio' | 'other'>('photo');
+  const [lastEphemeralToken, setLastEphemeralToken] = useState<string | null>(null);
+  const [disclosureAt, setDisclosureAt] = useState<string>('');
 
   const chatEndRef = useRef<HTMLDivElement>(null);
 
@@ -79,6 +84,9 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incidents, setIncidents
       auditTrailService.initializeTimeline(incident.id);
     }
     setAuditTimeline(auditTrailService.getTimeline(incident.id));
+
+    // Initialize secure room for incident
+    secureRoomService.createRoom(incident.id);
     
     // Record incident opened in audit trail
     auditTrailService.recordEvent(incident.id, currentUser.name, 'INCIDENT_OPENED', `Opened by ${currentUser.name} (${currentUser.role})`);
@@ -1190,9 +1198,135 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incidents, setIncidents
                 </div>
              </div>
              <div className="p-4 border-t border-border-dark">
-                <h4 className="text-sm font-bold text-white mb-1 uppercase tracking-tight">{incident.locationName}</h4>
-                <p className="text-xs text-text-secondary uppercase font-bold tracking-wider opacity-60">Strategic Sector Center</p>
+               {(() => {
+                 const loc = incidentPrivacyService.getDisplayLocation(incident);
+                 return (
+                   <>
+                     <h4 className="text-sm font-bold text-white mb-1 uppercase tracking-tight">{loc.name}</h4>
+                     <p className="text-xs text-text-secondary uppercase font-bold tracking-wider opacity-60">
+                       {loc.subtitle || (loc.lat !== undefined && loc.lng !== undefined ? `Lat ${loc.lat}, Lng ${loc.lng}` : 'Strategic Sector Center')}
+                     </p>
+                   </>
+                 );
+               })()}
              </div>
+          </div>
+
+          {/* Secure Mode & Privacy */}
+          <div className="bg-card-dark rounded-2xl border border-border-dark p-5 flex flex-col gap-4">
+            <h4 className="text-xs font-bold text-text-secondary uppercase tracking-widest">Secure Mode & Privacy</h4>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-cyan-400">shield_lock</span>
+                <span className="text-[10px] font-black uppercase tracking-widest text-white">Sensitive Case</span>
+              </div>
+              <label className="inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={!!incident.isSensitive}
+                  onChange={(e) => {
+                    const updated = incidentPrivacyService.setSensitive(incident, e.target.checked, currentUser.name, incident.category === 'Kidnapping' ? 'Kidnapping risk' : undefined);
+                    setIncident(updated);
+                    setIncidents(prev => prev.map(i => i.id === incident.id ? updated : i));
+                  }}
+                />
+                <span className="ml-2 text-[10px] text-text-secondary">{incident.isSensitive ? 'On' : 'Off'}</span>
+              </label>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-black uppercase tracking-widest text-white">Location Redaction</span>
+              <select
+                value={incident.locationRedaction || 'none'}
+                onChange={(e) => {
+                  const updated = incidentPrivacyService.setLocationRedaction(incident, e.target.value as any, currentUser.name);
+                  setIncident(updated);
+                  setIncidents(prev => prev.map(i => i.id === incident.id ? updated : i));
+                }}
+                className="bg-background-dark border border-border-dark rounded-lg px-2 py-1 text-[10px] text-white"
+              >
+                <option value="none">None</option>
+                <option value="coarse">Coarse (~1km)</option>
+                <option value="hidden">Hidden</option>
+              </select>
+            </div>
+
+            <div className="p-3 rounded-xl bg-slate-900 border border-border-dark flex flex-col gap-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-black text-text-secondary uppercase tracking-widest">Secure Room</span>
+                <span className="px-2 py-0.5 rounded bg-slate-800 text-[9px] text-text-secondary border border-border-dark">
+                  {(secureRoomService.getRoom(incident.id)?.participants.size || 0)} participants
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    secureRoomService.addParticipant(incident.id, currentUser.name);
+                    alert('Joined secure room');
+                  }}
+                  className="flex-1 py-2 rounded-xl bg-slate-800 text-white text-[10px] font-black uppercase tracking-widest hover:bg-slate-700 transition-all"
+                >
+                  Join Room
+                </button>
+                <button
+                  onClick={() => {
+                    const key = secureRoomService.generateEphemeralKey(incident.id, currentUser.name, 60 * 60 * 1000);
+                    setLastEphemeralToken(key.token);
+                    const updated = { ...incident, ephemeralKeyId: key.id, secureRoomId: secureRoomService.getRoom(incident.id)?.id };
+                    setIncident(updated);
+                    setIncidents(prev => prev.map(i => i.id === incident.id ? updated : i));
+                    alert(`Ephemeral key issued (1h): ${key.id}`);
+                  }}
+                  className="flex-1 py-2 rounded-xl bg-cyan-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-cyan-700 transition-all"
+                >
+                  Generate Ephemeral Key
+                </button>
+              </div>
+              {lastEphemeralToken && (
+                <div className="mt-2 p-2 rounded-lg bg-cyan-500/10 border border-cyan-500/30">
+                  <p className="text-[9px] text-cyan-300 font-mono break-all">Token: {lastEphemeralToken}</p>
+                </div>
+              )}
+            </div>
+
+            <div className="p-3 rounded-xl bg-amber-500/5 border border-amber-500/30 flex flex-col gap-2">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-amber-400">schedule_send</span>
+                <span className="text-[10px] font-black text-text-secondary uppercase tracking-widest">Delayed Public Disclosure</span>
+              </div>
+              <input
+                type="datetime-local"
+                value={disclosureAt}
+                onChange={(e) => setDisclosureAt(e.target.value)}
+                className="bg-background-dark border border-border-dark rounded-lg px-2 py-1 text-[10px] text-white"
+              />
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    if (!disclosureAt) { alert('Select date/time'); return; }
+                    const ts = new Date(disclosureAt).getTime();
+                    const updated = disclosureService.scheduleDisclosure(incident, ts, currentUser.name, 'Auto public');
+                    setIncident(updated);
+                    setIncidents(prev => prev.map(i => i.id === incident.id ? updated : i));
+                    alert('Disclosure scheduled');
+                  }}
+                  className="flex-1 py-2 rounded-xl bg-amber-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-amber-700 transition-all"
+                >
+                  Schedule
+                </button>
+                <button
+                  onClick={() => {
+                    const updated = disclosureService.publishNow(incident, currentUser.name, 'Immediate public');
+                    setIncident(updated);
+                    setIncidents(prev => prev.map(i => i.id === incident.id ? updated : i));
+                    alert('Published to public');
+                  }}
+                  className="flex-1 py-2 rounded-xl bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-emerald-700 transition-all"
+                >
+                  Publish Now
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
