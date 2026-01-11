@@ -579,10 +579,21 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incidents, setIncidents
 
                     <button 
                       onClick={() => {
-                        setIncident({...incident, assignedResponders: squad.volunteers.map(v => v.id)});
+                        const updatedIncident = {...incident, assignedResponders: squad.volunteers.map(v => v.id)};
+                        setIncident(updatedIncident);
+                        
+                        // Regenerate playbook with squad members as primary owners
+                        const squadMembers = squad.volunteers.map(v => ({
+                          id: v.id,
+                          name: v.name,
+                          skills: v.skills
+                        }));
+                        const updatedPlaybook = playbookService.generatePlaybook(updatedIncident, volunteers, squadMembers);
+                        setPlaybook(updatedPlaybook);
+                        
                         // Trigger notification
                         const assignedNames = squad.volunteers.map(v => v.name).join(', ');
-                        alert(`Deployed Squad ${idx + 1}: ${assignedNames} → ETA ${squad.estimatedArrival}min`);
+                        alert(`Deployed Squad ${idx + 1}: ${assignedNames} → ETA ${squad.estimatedArrival}min\n\nPlaybook regenerated with squad as primary owners.`);
                       }}
                       className="w-full py-2 rounded-xl bg-blue-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-blue-700 shadow-glow-blue transition-all active:scale-95 flex items-center justify-center gap-1"
                     >
