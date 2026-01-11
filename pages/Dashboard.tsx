@@ -4,6 +4,7 @@ import { Incident, Severity, IncidentStatus, IncidentCategory, User } from '../t
 import { SEVERITY_COLORS, STATUS_COLORS, CATEGORY_ICONS } from '../constants';
 import { useNavigate } from 'react-router-dom';
 import { analyticsService } from '../services/analyticsService';
+import { buildPredictiveDispatches, DispatchSuggestion } from '../services/routingService';
 
 declare const L: any;
 
@@ -34,6 +35,7 @@ const Dashboard: React.FC<DashboardProps> = ({ incidents, volunteers = [], curre
   
   const [riskAreas, setRiskAreas] = useState<any[]>([]);
   const [showHeatmap, setShowHeatmap] = useState(false);
+  const predictiveDispatches = useMemo<DispatchSuggestion[]>(() => buildPredictiveDispatches(incidents, volunteers), [incidents, volunteers]);
   
   // Tactical Modal State (Now used for explicit preview actions if needed, or can be removed)
   const [previewIncident, setPreviewIncident] = useState<Incident | null>(null);
@@ -43,6 +45,11 @@ const Dashboard: React.FC<DashboardProps> = ({ incidents, volunteers = [], curre
     if (mapRef.current && currentUser?.lat && currentUser?.lng) {
       mapRef.current.flyTo([currentUser.lat, currentUser.lng], 14, { duration: 1.5 });
     }
+  };
+
+  const handleCenterToCoords = (lat?: number, lng?: number) => {
+    if (!mapRef.current || !lat || !lng) return;
+    mapRef.current.flyTo([lat, lng], 12, { duration: 1.2 });
   };
 
   // 1. Initialize Leaflet Map
