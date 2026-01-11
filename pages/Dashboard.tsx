@@ -3,6 +3,7 @@ import { Incident, Severity, IncidentStatus, IncidentCategory, User, Role } from
 import { SEVERITY_COLORS, STATUS_COLORS, CATEGORY_ICONS } from '../constants';
 import { useNavigate } from 'react-router-dom';
 import { analyticsService } from '../services/analyticsService';
+import { resourceLogisticsService, Asset } from '../services/resourceLogisticsService';
 import { buildPredictiveDispatches, DispatchSuggestion } from '../services/routingService';
 import { hazardLayersService, LeafletLayer } from '../services/hazardLayersService';
 import { liveHazardsService } from '../services/liveHazardsService';
@@ -37,6 +38,9 @@ const Dashboard: React.FC<DashboardProps> = ({ incidents, volunteers = [], curre
   
   const [riskAreas, setRiskAreas] = useState<any[]>([]);
   const [showHeatmap, setShowHeatmap] = useState(false);
+  const [assets, setAssets] = useState<Asset[]>(resourceLogisticsService.listAssets());
+  const [shortages, setShortages] = useState<Array<{ region: string; shortages: string[] }>>([]);
+  const [resupplyRoutes, setResupplyRoutes] = useState<Array<{ assetId: string; from: string; toIncidentId: string; distanceKm: number; note: string }>>([]);
   const [readiness, setReadiness] = useState<Array<{ region: string; avgResponseMins: number; closureRate: number; skillGaps: string[]; readinessScore: number }>>([]);
   const [anomalies, setAnomalies] = useState<Array<{ incidentId: string; region: string; suspicionScore: number; reason: string }>>([]);
   const [drillRegion, setDrillRegion] = useState<string>('New York, USA');
@@ -379,6 +383,13 @@ const Dashboard: React.FC<DashboardProps> = ({ incidents, volunteers = [], curre
   useEffect(() => {
     analyticsService.getRiskHeatmap().then(setRiskAreas);
   }, []);
+
+  // Refresh logistics analytics on incident/asset changes
+  useEffect(() => {
+    setAssets(resourceLogisticsService.listAssets());
+    setShortages(resourceLogisticsService.forecastShortages(incidents, volunteers));
+    setResupplyRoutes(resourceLogisticsService.preallocateResupplyRoutes(incidents));
+  }, [incidents, volunteers]);
 
   // Readiness by Region & Anomaly Detection
   useEffect(() => {
@@ -789,6 +800,98 @@ const Dashboard: React.FC<DashboardProps> = ({ incidents, volunteers = [], curre
         </div>
 
         <div className="w-full xl:w-80 shrink-0 flex flex-col gap-6">
+          {/* Resource Logistics */}
+          <div className="bg-card-dark border border-border-dark rounded-[3rem] p-6 shadow-xl flex flex-col gap-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-white text-sm font-black uppercase tracking-widest italic flex items-center gap-2">
+                <span className="material-symbols-outlined text-primary">inventory_2</span> Resource Logistics
+              </h3>
+              <button
+                onClick={() => {
+                  setAssets(resourceLogisticsService.listAssets());
+                  setShortages(resourceLogisticsService.forecastShortages(incidents, volunteers));
+                  setResupplyRoutes(resourceLogisticsService.preallocateResupplyRoutes(incidents));
+                }}
+                className="px-2 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-border-dark text-white/60 hover:text-white transition-all text-[10px]"
+              >
+                <span className="material-symbols-outlined text-[12px]">refresh</span>
+              </button>
+            </div>
+            <div className="flex flex-col gap-2 max-h-[200px] overflow-y-auto custom-scrollbar">
+              {assets.map(a => (
+                <div key={a.id} className="p-3 rounded-xl bg-background-dark border border-border-dark">
+                  <div className="flex items-center justify-between">
+                    <p className="text-[11px] font-bold text-white">{a.name}</p>
+                    <span className="px-2 py-0.5 rounded-lg text-[9px] font-black uppercase border bg-slate-800 text-white/80 border-border-dark">{a.type}</span>
+                  </div>
+                  <div className="mt-1 text-[10px] text-text-secondary flex items-center gap-2">
+                    <span>Status: <span className="text-white font-bold">{a.status}</span></span>
+                    {a.fuelPct !== undefined && (
+                      <span>Fuel: <span className={`${(a.fuelPct||0) < 25 ? 'text-accent-red' : 'text-white'} font-bold`}>{Math.round(a.fuelPct!)}%</span></span>
+                    )}
+                  </div>
+                  <div className="mt-2 flex items-center gap-2">
+                    <select
+                      value={a.assignedIncidentId || ''}
+                      onChange={e => {
+                        const incId = e.target.value;
+                        const target = incidents.find(i => i.id === incId);
+                        if (incId && target) {
+                          resourceLogisticsService.assignToIncident(a.id, target);
+                        } else {
+                          resourceLogisticsService.unassign(a.id);
+                        }
+                        setAssets(resourceLogisticsService.listAssets());
+                      }}
+                      className="flex-1 bg-background-dark border border-border-dark rounded-lg px-2 py-1 text-[10px] text-white"
+                    >
+                      <option value="">Unassigned</option>
+                      {incidents.filter(i => i.status !== IncidentStatus.CLOSED).map(i => (
+                        <option key={i.id} value={i.id}>{i.title}</option>
+                      ))}
+                    </select>
+                    <button
+                      onClick={() => {
+                        resourceLogisticsService.unassign(a.id);
+                        setAssets(resourceLogisticsService.listAssets());
+                      }}
+                      className="px-2 py-1 rounded-lg bg-slate-800 text-white text-[10px] border border-border-dark hover:bg-slate-700"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                </div>
+              ))}
+              {assets.length === 0 && (
+                <p className="text-[10px] text-text-secondary italic">No tracked assets</p>
+              )}
+            </div>
+            <div className="mt-2">
+              <p className="text-[10px] font-black text-text-secondary uppercase tracking-widest">Forecasted Shortages</p>
+              <div className="flex flex-col gap-1 mt-1 max-h-24 overflow-y-auto">
+                {shortages.map(s => (
+                  <div key={s.region} className="flex items-center justify-between text-[10px]">
+                    <span className="text-text-secondary">{s.region}</span>
+                    <span className="text-amber-300">{s.shortages.length > 0 ? s.shortages.join(', ') : 'None'}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="mt-2">
+              <p className="text-[10px] font-black text-text-secondary uppercase tracking-widest">Resupply Routes</p>
+              <div className="flex flex-col gap-1 mt-1 max-h-24 overflow-y-auto">
+                {resupplyRoutes.map(r => (
+                  <div key={`${r.assetId}-${r.toIncidentId}`} className="flex items-center justify-between text-[10px]">
+                    <span className="text-text-secondary">{r.assetId} → {r.toIncidentId}</span>
+                    <span className="text-primary">{r.distanceKm} km</span>
+                  </div>
+                ))}
+                {resupplyRoutes.length === 0 && (
+                  <p className="text-[10px] text-text-secondary italic">No resupply suggestions</p>
+                )}
+              </div>
+            </div>
+          </div>
           <div className="bg-card-dark border border-border-dark rounded-[3rem] p-6 shadow-xl flex flex-col gap-4">
             <h3 className="text-white text-sm font-black uppercase tracking-widest italic flex items-center gap-2">
               <span className="material-symbols-outlined text-primary">broadcast_on_personal</span> Tactical Feed

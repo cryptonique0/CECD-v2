@@ -16,6 +16,7 @@ import { incidentPrivacyService } from '../services/incidentPrivacyService';
 import { disclosureService } from '../services/disclosureService';
 import { evidenceService, Evidence } from '../services/evidenceService';
 import { multiSigService, MultiSigProposal } from '../services/multiSigService';
+import { resourceLogisticsService, Asset } from '../services/resourceLogisticsService';
 
 interface IncidentDetailProps {
   incidents: Incident[];
@@ -54,6 +55,7 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incidents, setIncidents
   const [evidenceCategory, setEvidenceCategory] = useState<'photo' | 'video' | 'document' | 'audio' | 'other'>('photo');
   const [lastEphemeralToken, setLastEphemeralToken] = useState<string | null>(null);
   const [disclosureAt, setDisclosureAt] = useState<string>('');
+  const [incidentAssets, setIncidentAssets] = useState<Asset[]>([]);
 
   const chatEndRef = useRef<HTMLDivElement>(null);
 
@@ -98,6 +100,8 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incidents, setIncidents
     // Fetch critical proposals for this incident
     const proposals = multiSigService.getIncidentProposals(incident.id);
     setCriticalProposals(proposals);
+
+    setIncidentAssets(resourceLogisticsService.getIncidentAssets(incident.id));
   }, [incident, volunteers, currentUser]);
 
   useEffect(() => {
@@ -1081,6 +1085,56 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incidents, setIncidents
               </div>
             </section>
           )}
+
+          {/* Assigned Assets */}
+          <section className="bg-card-dark rounded-2xl border border-border-dark p-6 flex flex-col gap-5">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-primary">inventory_2</span>
+                <div className="flex flex-col">
+                  <h3 className="text-lg font-bold text-white uppercase tracking-tight">Assigned Assets</h3>
+                  <p className="text-[10px] text-text-secondary font-black uppercase tracking-widest">Vehicles, generators, kits</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIncidentAssets(resourceLogisticsService.getIncidentAssets(incident.id))}
+                className="px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest bg-slate-800 text-white border border-border-dark hover:bg-slate-700 transition-all"
+              >
+                Refresh
+              </button>
+            </div>
+            {incidentAssets.length === 0 ? (
+              <p className="text-[10px] text-text-secondary italic">No assets assigned</p>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {incidentAssets.map(a => (
+                  <div key={a.id} className="p-3 rounded-xl bg-background-dark border border-border-dark">
+                    <div className="flex items-center justify-between">
+                      <p className="text-[11px] font-bold text-white">{a.name}</p>
+                      <span className="px-2 py-0.5 rounded-lg text-[9px] font-black uppercase border bg-slate-800 text-white/80 border-border-dark">{a.type}</span>
+                    </div>
+                    <div className="mt-1 text-[10px] text-text-secondary flex items-center gap-2">
+                      <span>Status: <span className="text-white font-bold">{a.status}</span></span>
+                      {a.fuelPct !== undefined && (
+                        <span>Fuel: <span className={`${(a.fuelPct||0) < 25 ? 'text-accent-red' : 'text-white'} font-bold`}>{Math.round(a.fuelPct!)}%</span></span>
+                      )}
+                    </div>
+                    <div className="mt-2 flex items-center gap-2">
+                      <button
+                        onClick={() => {
+                          resourceLogisticsService.unassign(a.id);
+                          setIncidentAssets(resourceLogisticsService.getIncidentAssets(incident.id));
+                        }}
+                        className="px-2 py-1 rounded-lg bg-slate-800 text-white text-[10px] border border-border-dark hover:bg-slate-700"
+                      >
+                        Unassign
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
 
           <div className="flex gap-3">
             <button
