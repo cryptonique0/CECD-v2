@@ -124,3 +124,17 @@ export interface ChatMessage {
   isSystem?: boolean;
   timestamp: number;
 }
+
+export interface CommsStructuredReport {
+  title: string;
+  description: string;
+  category?: IncidentCategory;
+  severity?: Severity;
+  locationName?: string;
+  lat?: number;
+  lng?: number;
+  resourceNeeds?: string[];
+  actions?: string[];
+  victimsCount?: number;
+  vehiclesInvolved?: number;
+}
