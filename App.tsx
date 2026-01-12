@@ -15,6 +15,7 @@ import AiAssistant from './components/AiAssistant';
 import Teams from './pages/Teams';
 import Analytics from './pages/Analytics';
 import Training from './pages/Training';
+import AlertsManager from './pages/AlertsManager';
 import { Incident, User, Role } from './types';
 import { initialUsers, initialIncidents } from './mockData';
 import { aiService } from './services/aiService';
@@ -187,6 +188,7 @@ const App: React.FC = () => {
               <Route path="/teams" element={<Teams currentUser={currentUser} />} />
               <Route path="/analytics" element={<Analytics incidents={incidents} />} />
               <Route path="/training" element={<Training currentUser={currentUser} />} />
+              <Route path="/alerts" element={<AlertsManager />} />
               <Route path="/admin" element={<AdminGovernance />} />
               <Route path="/profile" element={<Profile user={currentUser} />} />
               <Route path="/login" element={<Navigate to="/" replace />} />

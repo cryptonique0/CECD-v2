@@ -7,6 +7,7 @@ import { resourceLogisticsService, Asset } from '../services/resourceLogisticsSe
 import { buildPredictiveDispatches, DispatchSuggestion } from '../services/routingService';
 import { hazardLayersService, LeafletLayer } from '../services/hazardLayersService';
 import { liveHazardsService } from '../services/liveHazardsService';
+import AlertsPanel from '../components/AlertsPanel';
 
 declare const L: any;
 
@@ -634,6 +635,26 @@ const Dashboard: React.FC<DashboardProps> = ({ incidents, volunteers = [], curre
           ))}
         </div>
       </div>
+
+      {/* Critical Alerts Widget */}
+      <section className="bg-card-dark rounded-2xl border border-border-dark p-6 shadow-lg">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <span className="material-symbols-outlined text-accent-red text-lg">warning</span>
+            <h3 className="text-lg font-bold text-white uppercase tracking-tight">System Alerts</h3>
+          </div>
+          <button 
+            onClick={() => navigate('/alerts')}
+            className="text-[10px] font-semibold text-primary hover:text-primary/80 transition-colors flex items-center gap-1"
+          >
+            View All
+            <span className="material-symbols-outlined text-sm">arrow_forward</span>
+          </button>
+        </div>
+        <div className="max-h-64 overflow-y-auto">
+          <AlertsPanel incidentId={undefined} compact={true} />
+        </div>
+      </section>
 
       {/* Readiness by Region */}
       <section className="bg-card-dark rounded-2xl border border-border-dark p-6">
