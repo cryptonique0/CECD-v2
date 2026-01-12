@@ -644,6 +644,122 @@ If a source is unavailable, the app gracefully falls back to simulated overlays.
 9. Incident requires Hazmat → system identifies 3 certified volunteers
 10. Skill gap report: need more Hazmat-certified personnel
 
+### 21. Identity, Access & Governance
+
+**Purpose**: Establish formal governance and access control layers with role-based permissions, delegated authority for shift changes and emergencies, and protocol governance for system-wide decisions.
+
+**Key Components**:
+
+1. **Role-Based Access Control (RBAC) with Policy Engine**:
+   - Define roles with granular permissions
+   - Enforce access policies at operation level
+   - Policy templates for common roles
+   - Dynamic role assignment during incidents
+
+   **Standard Roles**:
+   - **Dispatcher**: Deploy squads, reassign resources, authorize fund releases
+   - **Analyst**: View incidents, generate reports, cannot deploy or authorize spending
+   - **Incident Commander**: Propose escalations, override safety protocols, delegate authority
+   - **Responder**: Update status, report incidents, upload evidence
+   - **Administrator**: Configure system, manage roles, audit logs
+   - **Volunteer**: Create incident reports, view assignments, offline capture
+
+   **Permission Matrix**:
+   ```
+   Dispatcher:
+     - can:deploy_squad, reassign_incident, authorize_funds, propose_escalation
+     - cannot: change_system_config, manage_roles
+   
+   Analyst:
+     - can: view_all_incidents, generate_reports, view_analytics, export_data
+     - cannot: deploy_squad, authorize_funds, modify_incidents
+   
+   Incident Commander:
+     - can: override_safety_protocols, propose_escalation, delegate_authority, modify_incidents
+     - cannot: change_system_config, manage_roles
+   ```
+
+2. **Delegated Authority**:
+   - Temporary authority transfer during shift changes
+   - Emergency delegation with auto-revocation
+   - Authority chain tracking (who delegated to whom)
+   - Immutable delegation audit trail
+
+   **Delegation Types**:
+   - **Shift Handoff**: Transfer authority for 8-12 hour period during shift change
+   - **Emergency Override**: Temporary elevation (5-30 min) during critical incidents
+   - **Cross-Region**: Allow regional dispatcher to manage adjacent regions during resource shortage
+
+   **Example Workflows**:
+   - Day shift dispatcher delegates authority to night shift (immutably logged)
+   - During flood emergency, Commander delegates temporary authority to 3 responders to approve fund releases independently
+   - Authority auto-revokes after incident closure or time expiry
+
+3. **Governance Proposals & Voting**:
+   - Propose protocol changes, rule modifications, escalation threshold adjustments
+   - Multi-tier voting by verified roles
+   - Transparent proposal history and audit trail
+   - Time-locked execution for critical changes
+
+   **Proposal Types**:
+   - **Protocol Upgrades**: System configuration changes (requires 3/5 admin votes)
+   - **Rule Changes**: Escalation thresholds, dispatch algorithms (requires 2/3 dispatcher votes)
+   - **Governance Evolution**: New roles, permission modifications (requires 5/7 commander + admin votes)
+   - **Resource Policies**: Budget changes, equipment procurement rules (requires financial manager + 2 commanders)
+
+   **Voting Rules**:
+   - Minimum quorum: depends on proposal type
+   - Voting period: 24-48 hours
+   - Early execution if unanimous before deadline
+   - Vote visibility: transparent to all stakeholders
+   - Delegation of votes supported (authorized voters can delegate to proxy)
+
+   **Example Proposals**:
+   - "Increase auto-escalation threshold from 30 min to 45 min response time" (dispatch rule change)
+   - "Add IoT responder certification requirement" (role permission change)
+   - "Implement dynamic fee structure for mutual-aid transfers" (budget policy change)
+   - "Upgrade auth to multi-factor with FIDO2" (protocol upgrade)
+
+4. **Access Control Enforcement**:
+   - Permission checks at API/service layer
+   - Deny by default, allow explicit
+   - Context-aware permissions (role + incident severity + region)
+   - Real-time permission updates during delegation
+
+   **Context Examples**:
+   - Analyst can view High severity incidents, not Critical
+   - Responder can only update own assignment status, not others
+   - Dispatcher can deploy squads within service area, not outside region
+   - Commander can override thresholds only during declared emergency
+
+**UI Integration** (planned components):
+- **Access Control Dashboard**: View assigned roles, active delegations, pending proposals
+- **Role Management Panel**: (Admin only) Create/modify roles, assign permissions
+- **Delegation Interface**: Request/approve authority transfers with duration and scope
+- **Governance Portal**: View/vote on proposals, track voting history
+- **Permission Matrix Viewer**: Visualize who can do what with interactive role explorer
+
+**Service Integration** ([services/governance/](services/governance/) namespace - future):
+- `rbacService.ts` - Role definition, permission enforcement
+- `delegationService.ts` - Authority transfer, delegation lifecycle
+- `governanceService.ts` - Proposal management, voting, execution
+
+**Security Guarantees**:
+- Permission changes immutably logged
+- Delegation auto-revokes on time/event expiry
+- No silent permission escalation (all changes logged + notified)
+- Voting transparent and tamper-proof
+- Critical operations require multi-sig + governance approval
+
+**Example Governance Scenario**:
+1. High-severity flood → Incident Commander proposes "Emergency Fund Release Authority" delegation to 3 senior dispatchers (5-hour duration)
+2. Proposal created, all stakeholders notified
+3. 2 administrators approve within 30 minutes
+4. Authority delegated immediately with immutable record
+5. Dispatchers can now approve fund releases independently (logged per-dispatch)
+6. After incident, authority auto-revokes
+7. Full audit trail available: who proposed, who approved, how authority was used
+
 ---
 
 ## Service Architecture
