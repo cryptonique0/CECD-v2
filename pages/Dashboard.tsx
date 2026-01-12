@@ -522,10 +522,26 @@ const Dashboard: React.FC<DashboardProps> = ({ incidents, volunteers = [], curre
     alert(`Simulated ${sims.length} drill incidents for ${drillRegion}`);
   };
 
+  // Compute KPIs from analytics
+  const kpis = useMemo(() => {
+    const activeIncidents = incidents.filter(i => i.status !== IncidentStatus.CLOSED).length;
+    const resolvedIncidents = incidents.filter(i => i.status === IncidentStatus.RESOLVED || i.status === IncidentStatus.CLOSED).length;
+    const overallSuccessRate = incidents.length > 0 ? (resolvedIncidents / incidents.length) : 0;
+    const latestResponseMetric = responseTimeMetrics.length > 0 ? responseTimeMetrics[responseTimeMetrics.length - 1] : null;
+    const topResponder = responderPerformance.length > 0 ? responderPerformance[0] : null;
+    
+    return {
+      activeIncidents,
+      successRate: overallSuccessRate,
+      avgResponseTime: latestResponseMetric?.avgResponseTimeMins || 0,
+      topResponder
+    };
+  }, [incidents, responseTimeMetrics, responderPerformance]);
+
   const stats = [
-    { label: 'Active Alerts', value: incidents.filter(i => i.status !== IncidentStatus.CLOSED).length, trend: '+2h', color: 'primary', icon: 'campaign' },
+    { label: 'Active Incidents', value: kpis.activeIncidents, trend: '+2h', color: 'primary', icon: 'campaign' },
     { label: 'Global Responders', value: volunteers.length + 2440, trend: '+12%', color: 'accent-green', icon: 'groups' },
-    { label: 'Avg Response', value: '8.2m', trend: '-15s', color: 'accent-orange', icon: 'timer' },
+    { label: 'Success Rate', value: `${Math.round(kpis.successRate * 100)}%`, trend: kpis.successRate > 0.8 ? '+5%' : '-2%', color: kpis.successRate > 0.8 ? 'accent-green' : 'accent-orange', icon: 'trending_up' },
     { label: 'Base Node', value: '100%', trend: 'Stable', color: 'accent-green', icon: 'dns' }
   ];
 
