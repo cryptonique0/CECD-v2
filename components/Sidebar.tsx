@@ -21,6 +21,7 @@ const Sidebar: React.FC<SidebarProps> = ({ role, onLogout }) => {
     { to: '/teams', label: 'Teams', icon: 'groups', description: 'Crew management' },
     { to: '/analytics', label: 'Analytics', icon: 'analytics', description: 'Performance metrics' },
     { to: '/training', label: 'Training', icon: 'school', description: 'Drills & courses' },
+    { to: '/alerts', label: 'Alerts', icon: 'warning', description: 'Alert management' },
     { to: '/admin', label: 'Governance', icon: 'admin_panel_settings', description: 'Protocol settings', adminOnly: true },
     { to: '/profile', label: 'Profile', icon: 'person', description: 'Your settings' },
   ];

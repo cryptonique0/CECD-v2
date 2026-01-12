@@ -171,14 +171,14 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                   {/* Reactions */}
                   {message.reactions && Object.keys(message.reactions).length > 0 && (
                     <div className="flex flex-wrap gap-1 mt-2">
-                      {Object.entries(message.reactions).map(([emoji, userIds]) => (
+                      {Object.entries(message.reactions).map(([emoji, userIds]: [string, unknown]) => (
                         <button
                           key={emoji}
                           onClick={() => handleAddReaction(message.id, emoji)}
                           className="px-2 py-1 bg-white/10 hover:bg-white/20 rounded text-xs transition-all flex items-center gap-1"
                         >
                           <span>{emoji}</span>
-                          <span className="text-[10px] text-white/60">{userIds.length}</span>
+                          <span className="text-[10px] text-white/60">{Array.isArray(userIds) ? userIds.length : 0}</span>
                         </button>
                       ))}
                     </div>

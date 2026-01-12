@@ -7,9 +7,9 @@ const AlertsManager: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'alerts' | 'rules' | 'config'>('alerts');
   const [showNewRuleForm, setShowNewRuleForm] = useState(false);
   const [newRuleName, setNewRuleName] = useState('');
-  const [newRuleCondition, setNewRuleCondition] = useState('');
+  const [newRuleCondition, setNewRuleCondition] = useState<'incident_count' | 'response_time' | 'severity_spike' | 'resource_shortage' | 'team_availability' | 'anomaly'>('incident_count');
   const [newRuleThreshold, setNewRuleThreshold] = useState('10');
-  const [newRuleSeverity, setNewRuleSeverity] = useState<'critical' | 'warning' | 'info'>('warning');
+  const [currentUserId] = useState('user-current'); // Placeholder for current user
 
   const alerts = alertManagementService.getAlerts();
   const rules = alertManagementService.getRules();
@@ -29,19 +29,23 @@ const AlertsManager: React.FC = () => {
 
   const handleCreateRule = (e: React.FormEvent) => {
     e.preventDefault();
-    const rule: AlertRule = {
-      id: `rule-${Date.now()}`,
+    const rule = alertManagementService.createRule({
       name: newRuleName,
+      description: `Monitor for ${newRuleCondition}`,
       condition: newRuleCondition,
       threshold: parseInt(newRuleThreshold),
-      severity: newRuleSeverity,
+      timeWindow: 60,
       enabled: true,
-      createdAt: Date.now(),
-      triggeredCount: 0,
-    };
-    alertManagementService.createRule(rule);
+      actions: [
+        {
+          type: 'notification',
+          target: ['admin'],
+          message: `Alert triggered: ${newRuleName}`,
+        },
+      ],
+    });
     setNewRuleName('');
-    setNewRuleCondition('');
+    setNewRuleCondition('incident_count');
     setNewRuleThreshold('10');
     setShowNewRuleForm(false);
   };
@@ -58,7 +62,7 @@ const AlertsManager: React.FC = () => {
   };
 
   const handleAcknowledgeAlert = (alertId: string) => {
-    alertManagementService.acknowledgeAlert(alertId);
+    alertManagementService.acknowledgeAlert(alertId, currentUserId);
   };
 
   const handleResolveAlert = (alertId: string) => {
@@ -192,7 +196,7 @@ const AlertsManager: React.FC = () => {
                         </span>
                         <p className="text-sm font-bold text-white">{alert.title}</p>
                       </div>
-                      <p className="text-[10px] text-text-secondary mt-1">{alert.message}</p>
+                      <p className="text-[10px] text-text-secondary mt-1">{alert.description}</p>
                       <p className="text-[9px] text-text-secondary/50 mt-2">
                         Triggered: {new Date(alert.timestamp).toLocaleString()}
                       </p>
@@ -206,7 +210,7 @@ const AlertsManager: React.FC = () => {
                           Acknowledge
                         </button>
                       )}
-                      {alert.status === 'active' && (
+                      {!alert.resolvedAt && (
                         <button
                           onClick={() => handleResolveAlert(alert.id)}
                           className="px-3 py-1 rounded-lg bg-emerald-500/20 text-emerald-400 text-[10px] font-semibold hover:bg-emerald-500/30 transition-all"
@@ -254,14 +258,19 @@ const AlertsManager: React.FC = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-[10px] font-semibold text-text-secondary uppercase">Condition</label>
-                  <input
-                    type="text"
+                  <select
                     value={newRuleCondition}
-                    onChange={e => setNewRuleCondition(e.target.value)}
-                    placeholder="e.g., temperature > 50"
+                    onChange={e => setNewRuleCondition(e.target.value as any)}
                     className="w-full mt-1 px-3 py-2 rounded-lg bg-background-dark border border-border-dark text-white text-sm placeholder-text-secondary/50 focus:border-primary/50 outline-none"
                     required
-                  />
+                  >
+                    <option value="incident_count">Incident Count</option>
+                    <option value="response_time">Response Time</option>
+                    <option value="severity_spike">Severity Spike</option>
+                    <option value="resource_shortage">Resource Shortage</option>
+                    <option value="team_availability">Team Availability</option>
+                    <option value="anomaly">Anomaly Detection</option>
+                  </select>
                 </div>
 
                 <div>
@@ -274,19 +283,6 @@ const AlertsManager: React.FC = () => {
                     required
                   />
                 </div>
-              </div>
-
-              <div>
-                <label className="text-[10px] font-semibold text-text-secondary uppercase">Severity</label>
-                <select
-                  value={newRuleSeverity}
-                  onChange={e => setNewRuleSeverity(e.target.value as any)}
-                  className="w-full mt-1 px-3 py-2 rounded-lg bg-background-dark border border-border-dark text-white text-sm focus:border-primary/50 outline-none"
-                >
-                  <option value="info">Info</option>
-                  <option value="warning">Warning</option>
-                  <option value="critical">Critical</option>
-                </select>
               </div>
 
               <div className="flex gap-2">
@@ -328,7 +324,7 @@ const AlertsManager: React.FC = () => {
                       </span>
                     </div>
                     <p className="text-[10px] text-text-secondary">{rule.condition} (threshold: {rule.threshold})</p>
-                    <p className="text-[9px] text-text-secondary/50 mt-1">Triggered {rule.triggeredCount} times</p>
+                    <p className="text-[9px] text-text-secondary/50 mt-1">Created: {new Date(rule.createdAt).toLocaleDateString()}</p>
                   </div>
                   <div className="flex flex-col gap-2">
                     <button
