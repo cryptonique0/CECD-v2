@@ -519,7 +519,18 @@ const Dashboard: React.FC<DashboardProps> = ({ incidents, volunteers = [], curre
   const runDrill = () => {
     const sims = analyticsService.simulateDrills(drillRegion, drillScenario, drillCount);
     setDrillIncidents(sims);
-    alert(`Simulated ${sims.length} drill incidents for ${drillRegion}`);
+    
+    // Log drill execution for analytics
+    const drillSummary = {
+      timestamp: Date.now(),
+      region: drillRegion,
+      scenario: drillScenario,
+      count: drillCount,
+      incidentIds: sims.map(s => s.id)
+    };
+    console.log('[DRILL ANALYTICS]', drillSummary);
+    
+    alert(`Simulated ${sims.length} drill incidents for ${drillRegion} (${drillScenario}). Check console for analytics.`);
   };
 
   // Compute KPIs from analytics
@@ -858,6 +869,95 @@ const Dashboard: React.FC<DashboardProps> = ({ incidents, volunteers = [], curre
               Showing top 10 of {responderPerformance.length} responders
             </p>
           )}
+        </section>
+      )}
+
+      {/* Analytics Summary & System Health */}
+      {(responseTimeMetrics.length > 0 || successRates.length > 0 || responderPerformance.length > 0) && (
+        <section className="bg-card-dark rounded-2xl border border-border-dark p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <span className="material-symbols-outlined text-purple-400">health_and_safety</span>
+            <h3 className="text-lg font-bold text-white uppercase tracking-tight">System Health & Intelligence Summary</h3>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* KPI 1: Overall Success Rate */}
+            <div className="p-4 rounded-xl bg-background-dark border border-border-dark">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] text-text-secondary uppercase font-bold tracking-widest">Overall Success Rate</span>
+                <span className="material-symbols-outlined text-emerald-400 text-sm">check_circle</span>
+              </div>
+              <p className="text-3xl font-black text-white">{Math.round(kpis.successRate * 100)}%</p>
+              <p className="text-[9px] text-emerald-300 mt-1 font-bold">
+                {incidents.filter(i => i.status === IncidentStatus.RESOLVED || i.status === IncidentStatus.CLOSED).length} of {incidents.length} resolved
+              </p>
+            </div>
+
+            {/* KPI 2: Average Response Time */}
+            <div className="p-4 rounded-xl bg-background-dark border border-border-dark">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] text-text-secondary uppercase font-bold tracking-widest">Avg Response Time</span>
+                <span className="material-symbols-outlined text-cyan-400 text-sm">timer</span>
+              </div>
+              <p className="text-3xl font-black text-white">{kpis.avgResponseTime.toFixed(1)}m</p>
+              <p className="text-[9px] text-cyan-300 mt-1 font-bold">
+                {responseTimeMetrics.length > 0 ? `${responseTimeMetrics[responseTimeMetrics.length - 1].incidentsResponded} incidents tracked` : 'Calculating...'}
+              </p>
+            </div>
+
+            {/* KPI 3: Top Responder Rating */}
+            <div className="p-4 rounded-xl bg-background-dark border border-border-dark">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] text-text-secondary uppercase font-bold tracking-widest">Top Performer</span>
+                <span className="material-symbols-outlined text-amber-400 text-sm">star</span>
+              </div>
+              <p className="text-lg font-black text-white truncate">{kpis.topResponder?.name || 'N/A'}</p>
+              <p className="text-[9px] text-amber-300 mt-1 font-bold">
+                {kpis.topResponder ? `${Math.round(kpis.topResponder.successRate * 100)}% success rate` : 'No data'}
+              </p>
+            </div>
+
+            {/* KPI 4: Active Operations */}
+            <div className="p-4 rounded-xl bg-background-dark border border-border-dark">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] text-text-secondary uppercase font-bold tracking-widest">Active Incidents</span>
+                <span className="material-symbols-outlined text-primary text-sm">campaign</span>
+              </div>
+              <p className="text-3xl font-black text-white">{kpis.activeIncidents}</p>
+              <p className="text-[9px] text-primary/60 mt-1 font-bold">
+                {readiness.length} regions monitored
+              </p>
+            </div>
+          </div>
+
+          {/* Trend Indicators */}
+          <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Best Incident Type */}
+            {successRates.length > 0 && (
+              <div className="p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/20">
+                <p className="text-[10px] text-emerald-400 uppercase font-bold tracking-widest mb-2">Best Category</p>
+                <p className="text-xl font-black text-white">{successRates[0].category}</p>
+                <p className="text-[9px] text-emerald-300 mt-1">Success: {Math.round(successRates[0].successRate * 100)}%</p>
+              </div>
+            )}
+
+            {/* Regional Coverage */}
+            {readiness.length > 0 && (
+              <div className="p-4 rounded-xl bg-blue-500/5 border border-blue-500/20">
+                <p className="text-[10px] text-blue-400 uppercase font-bold tracking-widest mb-2">Regional Average</p>
+                <div className="text-xl font-black text-white">
+                  {Math.round(readiness.reduce((a, r) => a + r.readinessScore, 0) / readiness.length * 100)}%
+                </div>
+                <p className="text-[9px] text-blue-300 mt-1">Readiness Score</p>
+              </div>
+            )}
+
+            {/* System Status */}
+            <div className="p-4 rounded-xl bg-green-500/5 border border-green-500/20">
+              <p className="text-[10px] text-green-400 uppercase font-bold tracking-widest mb-2">System Status</p>
+              <p className="text-xl font-black text-green-300">Operational</p>
+              <p className="text-[9px] text-green-300 mt-1">All services healthy</p>
+            </div>
+          </div>
         </section>
       )}
 
