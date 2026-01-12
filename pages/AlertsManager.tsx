@@ -10,10 +10,40 @@ const AlertsManager: React.FC = () => {
   const [newRuleCondition, setNewRuleCondition] = useState<'incident_count' | 'response_time' | 'severity_spike' | 'resource_shortage' | 'team_availability' | 'anomaly'>('incident_count');
   const [newRuleThreshold, setNewRuleThreshold] = useState('10');
   const [currentUserId] = useState('user-current'); // Placeholder for current user
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterSeverity, setFilterSeverity] = useState<'all' | 'critical' | 'warning' | 'info'>('all');
+  const [sortBy, setSortBy] = useState<'time' | 'severity'>('time');
 
   const alerts = alertManagementService.getAlerts();
   const rules = alertManagementService.getRules();
   const unacknowledgedAlerts = alertManagementService.getUnacknowledgedAlerts();
+
+  // Filter and sort alerts
+  const filteredAlerts = useMemo(() => {
+    let filtered = alerts;
+
+    // Filter by search query
+    if (searchQuery) {
+      filtered = filtered.filter(alert =>
+        alert.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        alert.description.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }
+
+    // Filter by severity
+    if (filterSeverity !== 'all') {
+      filtered = filtered.filter(alert => alert.severity === filterSeverity);
+    }
+
+    // Sort alerts
+    return filtered.sort((a, b) => {
+      if (sortBy === 'severity') {
+        const severityOrder = { critical: 0, warning: 1, info: 2 };
+        return severityOrder[a.severity] - severityOrder[b.severity];
+      }
+      return b.timestamp - a.timestamp; // Most recent first
+    });
+  }, [alerts, searchQuery, filterSeverity, sortBy]);
 
   const stats = useMemo(() => {
     return {
@@ -150,11 +180,11 @@ const AlertsManager: React.FC = () => {
       {/* Alerts Tab */}
       {activeTab === 'alerts' && (
         <div className="flex flex-col gap-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
             <h3 className="text-lg font-bold text-white">Active Alerts</h3>
-            <div className="flex gap-2 text-[10px]">
+            <div className="flex flex-wrap gap-2 text-[10px]">
               <span className="px-3 py-1 rounded-full bg-slate-800 border border-border-dark text-text-secondary">
-                {alerts.length} Total
+                {filteredAlerts.length} of {alerts.length} Total
               </span>
               <span className="px-3 py-1 rounded-full bg-accent-red/10 border border-accent-red/30 text-accent-red font-semibold">
                 {unacknowledgedAlerts.length} Unacknowledged
@@ -162,14 +192,52 @@ const AlertsManager: React.FC = () => {
             </div>
           </div>
 
+          {/* Search and Filters */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="relative">
+              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary text-sm">search</span>
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                placeholder="Search alerts..."
+                className="w-full pl-9 pr-3 py-2 rounded-lg bg-background-dark border border-border-dark text-white text-sm placeholder-text-secondary/50 focus:border-primary/50 outline-none"
+              />
+            </div>
+
+            <select
+              value={filterSeverity}
+              onChange={e => setFilterSeverity(e.target.value as any)}
+              className="px-3 py-2 rounded-lg bg-background-dark border border-border-dark text-white text-sm focus:border-primary/50 outline-none"
+            >
+              <option value="all">All Severities</option>
+              <option value="critical">Critical Only</option>
+              <option value="warning">Warning Only</option>
+              <option value="info">Info Only</option>
+            </select>
+
+            <select
+              value={sortBy}
+              onChange={e => setSortBy(e.target.value as any)}
+              className="px-3 py-2 rounded-lg bg-background-dark border border-border-dark text-white text-sm focus:border-primary/50 outline-none"
+            >
+              <option value="time">Sort by Time</option>
+              <option value="severity">Sort by Severity</option>
+            </select>
+          </div>
+
           <div className="flex flex-col gap-3 max-h-96 overflow-y-auto">
-            {alerts.length === 0 ? (
+            {filteredAlerts.length === 0 ? (
               <div className="p-6 text-center border border-dashed border-border-dark rounded-2xl">
-                <span className="material-symbols-outlined text-4xl text-white/20 mb-2 block">check_circle</span>
-                <p className="text-text-secondary">No active alerts</p>
+                <span className="material-symbols-outlined text-4xl text-white/20 mb-2 block">
+                  {searchQuery || filterSeverity !== 'all' ? 'search_off' : 'check_circle'}
+                </span>
+                <p className="text-text-secondary">
+                  {searchQuery || filterSeverity !== 'all' ? 'No alerts match your filters' : 'No active alerts'}
+                </p>
               </div>
             ) : (
-              alerts.map(alert => (
+              filteredAlerts.map(alert => (
                 <div
                   key={alert.id}
                   className={`p-4 rounded-xl border ${

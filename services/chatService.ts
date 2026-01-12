@@ -1,4 +1,11 @@
-import { v4 as uuidv4 } from 'crypto-js';
+// Simple UUID generator
+const generateUUID = (): string => {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+};
 
 export interface ChatMessage {
   id: string;
@@ -49,7 +56,7 @@ class ChatServiceImpl implements ChatService {
 
   createChannel(incidentId: string, name: string, category: ChatChannel['category'], members: string[]): ChatChannel {
     const channel: ChatChannel = {
-      id: `ch-${uuidv4()}`,
+      id: `ch-${generateUUID()}`,
       incidentId,
       name,
       description: `${category} channel for incident ${incidentId}`,
@@ -69,7 +76,7 @@ class ChatServiceImpl implements ChatService {
 
   sendMessage(incidentId: string, channelId: string, userId: string, userName: string, userRole: string, message: string): ChatMessage {
     const msg: ChatMessage = {
-      id: `msg-${uuidv4()}`,
+      id: `msg-${generateUUID()}`,
       incidentId,
       userId,
       userName,

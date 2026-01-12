@@ -116,7 +116,7 @@ const AnalyticsPage: React.FC<AnalyticsPageProps> = ({ incidents }) => {
                   <div className="w-full bg-slate-700 rounded-full h-2">
                     <div
                       className="bg-gradient-to-r from-primary to-blue-500 h-2 rounded-full"
-                      style={{ width: `${(count / analytics.totalIncidents) * 100}%` }}
+                      style={{ width: `${analytics.totalIncidents > 0 ? (Number(count) / analytics.totalIncidents) * 100 : 0}%` }}
                     />
                   </div>
                 </div>
@@ -146,7 +146,7 @@ const AnalyticsPage: React.FC<AnalyticsPageProps> = ({ incidents }) => {
                     <div className="w-full bg-slate-700 rounded-full h-2">
                       <div
                         className={`bg-gradient-to-r ${colors[severity] || 'from-primary to-blue-500'} h-2 rounded-full`}
-                        style={{ width: `${(count / analytics.totalIncidents) * 100}%` }}
+                        style={{ width: `${analytics.totalIncidents > 0 ? (Number(count) / analytics.totalIncidents) * 100 : 0}%` }}
                       />
                     </div>
                   </div>
