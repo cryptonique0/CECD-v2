@@ -18,6 +18,12 @@ import { evidenceService, Evidence } from '../services/evidenceService';
 import { multiSigService, MultiSigProposal } from '../services/multiSigService';
 import { resourceLogisticsService, Asset } from '../services/resourceLogisticsService';
 import { commsCopilotService } from '../services/commsCopilotService';
+import { escalationService, EscalationEvent } from '../services/escalationService';
+import { safetyProtocolService, SafetyChecklist, SafetyProtocol } from '../services/safetyProtocolService';
+import { handoffService, HandoffPacket } from '../services/handoffService';
+import { schedulingService, ShiftSchedule, ScheduleConflict } from '../services/schedulingService';
+import { debriefService, DebriefSession } from '../services/debriefService';
+import { certificationService, VolunteerCertification } from '../services/certificationService';
 
 interface IncidentDetailProps {
   incidents: Incident[];
@@ -59,8 +65,24 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incidents, setIncidents
   const [incidentAssets, setIncidentAssets] = useState<Asset[]>([]);
   const [transcriptText, setTranscriptText] = useState<string>('');
   const [structuredReport, setStructuredReport] = useState<CommsStructuredReport | null>(null);
-  const [shiftSummary, setShiftSummary] = useState<{ summary: string; highlights: string[] } | null>(null);
+  const [shiftSummary, setShiftSummary] = useState<string>('');
   const [lastBrief, setLastBrief] = useState<{ windowStart: number; items: { time: string; actor: string; action: string; details: string }[] } | null>(null);
+  const [voiceTranscript, setVoiceTranscript] = useState('');
+  const [parsedReport, setParsedReport] = useState<CommsStructuredReport | null>(null);
+  const [shiftSince, setShiftSince] = useState<string>('');
+  const [last30Brief, setLast30Brief] = useState<string>('');
+
+  // New services state
+  const [escalationEvents, setEscalationEvents] = useState<EscalationEvent[]>([]);
+  const [safetyChecklists, setSafetyChecklists] = useState<SafetyChecklist[]>([]);
+  const [selectedChecklist, setSelectedChecklist] = useState<SafetyChecklist | null>(null);
+  const [activeHandoff, setActiveHandoff] = useState<HandoffPacket | null>(null);
+  const [volunteerSchedules, setVolunteerSchedules] = useState<ShiftSchedule[]>([]);
+  const [scheduleConflicts, setScheduleConflicts] = useState<ScheduleConflict[]>([]);
+  const [debriefSessions, setDebriefSessions] = useState<DebriefSession[]>([]);
+  const [showEscalationPanel, setShowEscalationPanel] = useState(false);
+  const [showSafetyPanel, setShowSafetyPanel] = useState(false);
+  const [showHandoffPanel, setShowHandoffPanel] = useState(false);
 
   const chatEndRef = useRef<HTMLDivElement>(null);
 
@@ -1686,6 +1708,317 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incidents, setIncidents
               </div>
             </div>
           </div>
+
+          {/* Escalation Monitoring */}
+          <div className="bg-card-dark rounded-2xl border border-border-dark p-5 flex flex-col gap-4">
+            <div className="flex items-center justify-between">
+              <h4 className="text-xs font-bold text-text-secondary uppercase tracking-widest">Escalation Monitor</h4>
+              <button
+                onClick={() => {
+                  const events = escalationService.evaluateIncident(incident, playbook?.resourceGaps);
+                  setEscalationEvents(events);
+                  if (events.length > 0) {
+                    setShowEscalationPanel(true);
+                    events.forEach(ev => {
+                      const result = escalationService.processEscalation(incident, ev, currentUser.name);
+                      if (result.escalated) {
+                        setIncident(result.newIncident);
+                        setIncidents(prev => prev.map(i => i.id === incident.id ? result.newIncident : i));
+                      }
+                      alert(result.message);
+                    });
+                  } else {
+                    alert('✅ No escalation rules triggered');
+                  }
+                }}
+                className="px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest bg-amber-500/10 text-amber-300 border border-amber-500/30 hover:bg-amber-500/20 transition-all"
+              >
+                Check Rules
+              </button>
+            </div>
+            {escalationEvents.length > 0 && (
+              <div className="flex flex-col gap-2">
+                {escalationEvents.slice(0, 3).map(ev => (
+                  <div key={ev.id} className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-[10px]">
+                    <p className="font-bold text-amber-300">{ev.reason}</p>
+                    <p className="text-text-secondary mt-1">Actions: {ev.actionsTriggered.join(', ')}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Safety Protocols */}
+          <div className="bg-card-dark rounded-2xl border border-border-dark p-5 flex flex-col gap-4">
+            <div className="flex items-center justify-between">
+              <h4 className="text-xs font-bold text-text-secondary uppercase tracking-widest">Safety Protocols</h4>
+              <button
+                onClick={() => {
+                  const protocols = safetyProtocolService.getProtocolsForCategory(incident.category);
+                  if (protocols.length > 0) {
+                    const checklist = safetyProtocolService.createChecklist(incident.id, protocols[0].id, currentUser.id);
+                    setSafetyChecklists([...safetyChecklists, checklist]);
+                    setSelectedChecklist(checklist);
+                    setShowSafetyPanel(true);
+                  }
+                }}
+                className="px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest bg-emerald-500/10 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/20 transition-all"
+              >
+                Start Checklist
+              </button>
+            </div>
+            {selectedChecklist && (
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-[10px] font-black text-white">
+                    Progress: {safetyProtocolService.getChecklistProgress(selectedChecklist.id).percentage}%
+                  </p>
+                  <span className="text-[9px] text-text-secondary">
+                    {safetyProtocolService.getChecklistProgress(selectedChecklist.id).completed}/
+                    {safetyProtocolService.getChecklistProgress(selectedChecklist.id).total}
+                  </span>
+                </div>
+                <div className="max-h-40 overflow-y-auto flex flex-col gap-2">
+                  {selectedChecklist.checks.slice(0, 5).map(check => {
+                    const protocol = safetyProtocolService.protocols.find(p => p.id === selectedChecklist.protocolId);
+                    const checkpoint = protocol?.checkpoints.find(cp => cp.id === check.checkpointId);
+                    return (
+                      <div key={check.checkpointId} className="p-2 rounded-lg bg-background-dark border border-border-dark flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={check.completed}
+                          onChange={() => {
+                            if (!check.completed) {
+                              safetyProtocolService.completeCheckpoint(selectedChecklist.id, check.checkpointId, currentUser.name);
+                              setSelectedChecklist(safetyProtocolService.getChecklist(selectedChecklist.id)!);
+                            }
+                          }}
+                          className="w-4 h-4"
+                        />
+                        <div className="flex-1">
+                          <p className="text-[10px] font-bold text-white">{checkpoint?.name}</p>
+                          {checkpoint?.critical && (
+                            <span className="text-[8px] text-accent-red uppercase font-black">Critical</span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <button
+                  onClick={() => {
+                    try {
+                      const signed = safetyProtocolService.signOffChecklist(selectedChecklist.id, currentUser.name);
+                      alert('✅ Safety checklist signed off!');
+                      setSelectedChecklist(signed);
+                    } catch (err: any) {
+                      alert('❌ ' + err.message);
+                    }
+                  }}
+                  disabled={selectedChecklist.signedOff}
+                  className="py-2 rounded-xl bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-emerald-700 transition-all disabled:opacity-50"
+                >
+                  {selectedChecklist.signedOff ? 'Signed Off' : 'Sign Off'}
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Incident Handoff */}
+          <div className="bg-card-dark rounded-2xl border border-border-dark p-5 flex flex-col gap-4">
+            <div className="flex items-center justify-between">
+              <h4 className="text-xs font-bold text-text-secondary uppercase tracking-widest">Incident Handoff</h4>
+              {!activeHandoff && (
+                <button
+                  onClick={() => {
+                    const handoff = handoffService.initiateHandoff(
+                      incident.id,
+                      currentUser.name,
+                      currentUser.name,
+                      volunteers[0]?.name || 'Next Shift',
+                      `Handoff for ${incident.title}`,
+                      [`Severity: ${incident.severity}`, `Status: ${incident.status}`],
+                      { 'Ambulances': 2, 'Fire Trucks': 1 },
+                      ['Complete evidence review', 'Update dispatch'],
+                      ['Building instability', 'Gas leak reported']
+                    );
+                    setActiveHandoff(handoff);
+                    setShowHandoffPanel(true);
+                  }}
+                  className="px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest bg-blue-500/10 text-blue-300 border border-blue-500/30 hover:bg-blue-500/20 transition-all"
+                >
+                  Initiate
+                </button>
+              )}
+            </div>
+            {activeHandoff && (
+              <div className="flex flex-col gap-3">
+                <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/30">
+                  <p className="text-[10px] font-black text-blue-300 mb-2">
+                    {handoffService.getHandoffStatus(activeHandoff.id)}
+                  </p>
+                  <p className="text-[9px] text-text-secondary">
+                    From: {activeHandoff.transferFrom} → To: {activeHandoff.transferTo}
+                  </p>
+                  <p className="text-[10px] text-white mt-2">{activeHandoff.briefingNotes}</p>
+                </div>
+                <div className="flex gap-2">
+                  {activeHandoff.status === 'proposed' && (
+                    <button
+                      onClick={() => {
+                        const ack = handoffService.acknowledgeHandoff(activeHandoff.id, activeHandoff.transferTo);
+                        setActiveHandoff(ack);
+                      }}
+                      className="flex-1 py-2 rounded-xl bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-emerald-700 transition-all"
+                    >
+                      Acknowledge
+                    </button>
+                  )}
+                  {activeHandoff.status === 'acknowledged' && (
+                    <button
+                      onClick={() => {
+                        const started = handoffService.beginHandoff(activeHandoff.id);
+                        setActiveHandoff(started);
+                      }}
+                      className="flex-1 py-2 rounded-xl bg-blue-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-blue-700 transition-all"
+                    >
+                      Begin Handoff
+                    </button>
+                  )}
+                  {activeHandoff.status === 'in_progress' && (
+                    <button
+                      onClick={() => {
+                        try {
+                          const completed = handoffService.completeHandoff(activeHandoff.id, activeHandoff.transferFrom, activeHandoff.transferTo);
+                          setActiveHandoff(completed);
+                          alert('✅ Handoff completed and signed');
+                        } catch (err: any) {
+                          alert('❌ ' + err.message);
+                        }
+                      }}
+                      className="flex-1 py-2 rounded-xl bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-emerald-700 transition-all"
+                    >
+                      Complete & Sign
+                    </button>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-[9px]">
+                  <div className="p-2 rounded-lg bg-background-dark border border-border-dark">
+                    <p className="font-bold text-text-secondary mb-1">Critical Context</p>
+                    {activeHandoff.criticalContext.slice(0, 2).map((ctx, i) => (
+                      <p key={i} className="text-white">• {ctx}</p>
+                    ))}
+                  </div>
+                  <div className="p-2 rounded-lg bg-background-dark border border-border-dark">
+                    <p className="font-bold text-text-secondary mb-1">Hazard Warnings</p>
+                    {activeHandoff.hazardWarnings.slice(0, 2).map((hz, i) => (
+                      <p key={i} className="text-accent-red">⚠️ {hz}</p>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Volunteer Scheduling */}
+          <div className="bg-card-dark rounded-2xl border border-border-dark p-5 flex flex-col gap-4">
+            <div className="flex items-center justify-between">
+              <h4 className="text-xs font-bold text-text-secondary uppercase tracking-widest">Scheduling</h4>
+              <button
+                onClick={() => {
+                  const shift = schedulingService.createShift(
+                    currentUser.id,
+                    currentUser.name,
+                    'emergency',
+                    Date.now(),
+                    Date.now() + 4 * 60 * 60 * 1000,
+                    8,
+                    incident.locationName
+                  );
+                  setVolunteerSchedules([...volunteerSchedules, shift]);
+                  const conflicts = schedulingService.detectConflicts(currentUser.id);
+                  setScheduleConflicts(conflicts);
+                }}
+                className="px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest bg-slate-800 text-white border border-border-dark hover:bg-slate-700 transition-all"
+              >
+                + Add Shift
+              </button>
+            </div>
+            {scheduleConflicts.length > 0 && (
+              <div className="p-3 rounded-lg bg-accent-red/10 border border-accent-red/30">
+                <p className="text-[10px] font-black text-accent-red mb-2">⚠️ {scheduleConflicts.length} Conflicts Detected</p>
+                {scheduleConflicts.slice(0, 2).map(conf => (
+                  <p key={conf.id} className="text-[9px] text-text-secondary mt-1">• {conf.description}</p>
+                ))}
+              </div>
+            )}
+            <div className="flex flex-col gap-2 max-h-32 overflow-y-auto">
+              {volunteerSchedules.slice(0, 3).map(shift => (
+                <div key={shift.id} className="p-2 rounded-lg bg-background-dark border border-border-dark">
+                  <div className="flex items-center justify-between">
+                    <p className="text-[10px] font-bold text-white">{shift.volunteername}</p>
+                    <span className={`px-2 py-0.5 rounded-lg text-[8px] font-black uppercase ${
+                      shift.status === 'active' ? 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/30' :
+                      shift.status === 'completed' ? 'bg-slate-800 text-text-secondary border border-border-dark' :
+                      'bg-blue-500/10 text-blue-300 border border-blue-500/30'
+                    }`}>
+                      {shift.status}
+                    </span>
+                  </div>
+                  <p className="text-[9px] text-text-secondary mt-1">{shift.shiftType} • {shift.location}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Post-Incident Debrief */}
+          {incident.status === 'Resolved' && (
+            <div className="bg-card-dark rounded-2xl border border-border-dark p-5 flex flex-col gap-4">
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs font-bold text-text-secondary uppercase tracking-widest">Post-Incident Debrief</h4>
+                <button
+                  onClick={() => {
+                    const session = debriefService.initiateDebrief(
+                      incident.id,
+                      currentUser.name,
+                      incident.assignedResponders
+                    );
+                    debriefService.startDebrief(session.id);
+                    setDebriefSessions([...debriefSessions, session]);
+                  }}
+                  className="px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest bg-purple-500/10 text-purple-300 border border-purple-500/30 hover:bg-purple-500/20 transition-all"
+                >
+                  Start Debrief
+                </button>
+              </div>
+              {debriefSessions.length > 0 && (
+                <div className="flex flex-col gap-3">
+                  {debriefSessions.slice(0, 1).map(session => (
+                    <div key={session.id} className="p-3 rounded-lg bg-purple-500/10 border border-purple-500/30">
+                      <p className="text-[10px] font-black text-purple-300 mb-2">
+                        Status: {session.status.toUpperCase()}
+                      </p>
+                      <p className="text-[9px] text-text-secondary">
+                        Participants: {session.participants.length} • Responses: {session.responses.length}
+                      </p>
+                      {session.status === 'in_progress' && (
+                        <button
+                          onClick={() => {
+                            const completed = debriefService.completeDebrief(session.id, 'Incident successfully resolved with lessons learned documented.');
+                            setDebriefSessions(prev => prev.map(s => s.id === session.id ? completed : s));
+                            alert('✅ Debrief completed');
+                          }}
+                          className="w-full mt-3 py-2 rounded-xl bg-purple-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-purple-700 transition-all"
+                        >
+                          Finalize Debrief
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
         </div>
       </div>
