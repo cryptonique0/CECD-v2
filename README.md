@@ -215,3 +215,523 @@ If a source is unavailable, the app gracefully falls back to simulated overlays.
 - Disbursement uses `baseVaultService` simulation (production: Base contract interaction)
 - Receipts can include references to uploads/evidence; attach via `addReceipt()`
 - Totals are per-step; aggregation across incident is supported via service helpers
+
+### 11. Secure Mode: End-to-End Encrypted Private Chat
+
+**Purpose**: Enable confidential discussions for sensitive situations (missing persons, security threats, medical privacy) with end-to-end encryption and self-destructing messages.
+
+**Key Components**:
+- **Secure Chat Service** ([services/secureChatService.ts](services/secureChatService.ts)):
+  - AES-256-GCM encryption with per-conversation symmetric keys
+  - Self-destructing messages (auto-delete after configurable TTL)
+  - Encrypted file attachments support
+  - Participant management with role-based access (admin, member, viewer)
+  - Message editing and soft-deletion with audit trail
+  - Read receipts and typing indicators (encrypted)
+
+**Security Features**:
+- End-to-end encryption (keys never leave client)
+- Optional self-destruct timers (5min to 24hr)
+- Encrypted metadata (subject, participants)
+- Secure key derivation (PBKDF2 with salt)
+- Forward secrecy support
+
+**UI Integration** ([pages/IncidentDetail.tsx](pages/IncidentDetail.tsx)):
+- "Enable Secure Mode" button creates encrypted conversation
+- Encrypted chat interface with:
+  - Message composer with encryption indicator
+  - Self-destruct timer selector
+  - Encrypted file upload
+  - Participant list with roles
+  - Typing indicators
+  - Read receipts
+- Visual indicators for encrypted messages (lock icon, timer countdown)
+
+**Example Workflow**:
+1. Dispatcher enables secure mode for sensitive incident
+2. Encrypted conversation created with authorized participants
+3. Messages sent with optional 1hr self-destruct timer
+4. Sensitive documents uploaded (encrypted)
+5. Messages auto-delete after timer expires
+6. All activity logged in audit trail (metadata only, content encrypted)
+
+### 12. Real-Time Analytics & Decision Intelligence
+
+**Purpose**: Provide command-level insights with predictive models, resource optimization recommendations, and real-time operational metrics.
+
+**Key Components**:
+- **Analytics Service** ([services/analyticsService.ts](services/analyticsService.ts)):
+  - **Predictive Models**: Forecast incident duration, resource needs, escalation probability
+  - **Resource Optimization**: Identify bottlenecks, suggest reallocation, detect gaps
+  - **Response Metrics**: Track response times, resolution rates, volunteer utilization
+  - **Trend Analysis**: Pattern detection across incidents, seasonal trends, hotspot identification
+  - **Real-time Dashboards**: Live KPI tracking with configurable refresh intervals
+
+**Analytics Capabilities**:
+- Machine learning-based duration prediction (±30min accuracy)
+- Resource demand forecasting (personnel, equipment, supplies)
+- Bottleneck detection with suggested mitigation
+- Response time analysis (dispatch → arrival → resolution)
+- Volunteer burnout prediction (workload, fatigue scoring)
+- Incident clustering by location/type/severity
+
+**UI Integration** ([pages/IncidentDetail.tsx](pages/IncidentDetail.tsx)):
+- Analytics dashboard with:
+  - Predicted duration and confidence interval
+  - Resource needs forecast (skill requirements, equipment)
+  - Escalation risk score with contributing factors
+  - Response timeline visualization
+  - Optimization recommendations
+- Real-time metric cards (active incidents, avg response time, resolution rate)
+
+**Example Workflow**:
+1. New high-severity incident reported
+2. Analytics predicts 4-6hr duration with 85% confidence
+3. Forecasts need for 2 EMTs, 1 rescue specialist, medical supplies
+4. Identifies 65% escalation risk due to resource gap
+5. Recommends pre-positioning additional responders
+6. Dashboard tracks actual vs predicted metrics
+7. Post-incident analysis validates accuracy for model improvement
+
+### 13. Resource Logistics & Inventory Management
+
+**Purpose**: Track equipment, supplies, and vehicles with real-time availability, maintenance scheduling, and automated restocking.
+
+**Key Components**:
+- **Logistics Service** ([services/logisticsService.ts](services/logisticsService.ts)):
+  - **Inventory Tracking**: Real-time stock levels, location tracking, expiry monitoring
+  - **Equipment Management**: Usage history, maintenance schedules, condition tracking
+  - **Vehicle Fleet**: Assignment, fuel levels, service intervals, GPS integration
+  - **Automated Restocking**: Low-stock alerts, auto-reorder triggers, supply chain optimization
+  - **Deployment Planning**: Resource allocation to incidents with conflict detection
+
+**Inventory Features**:
+- Multi-location warehouse management
+- Category-based organization (medical, rescue, shelter, communications)
+- Quantity tracking with min/max thresholds
+- Expiry date monitoring with advance alerts
+- Usage analytics (consumption rates, waste reduction)
+
+**Equipment Lifecycle**:
+- Condition tracking (operational, needs_maintenance, out_of_service)
+- Maintenance scheduling with service history
+- Assignment tracking (who has what, when)
+- Depreciation and replacement planning
+
+**Vehicle Management**:
+- Fleet overview (ambulances, rescue trucks, logistics vehicles)
+- Fuel level monitoring with refuel alerts
+- Service interval tracking (last service, next due)
+- Assignment to incidents with GPS tracking
+
+**UI Integration** ([pages/IncidentDetail.tsx](pages/IncidentDetail.tsx)):
+- Resource allocation panel showing:
+  - Available equipment by category
+  - Assigned vehicles with status
+  - Supply levels with low-stock warnings
+  - "Assign Resources" workflow
+  - Maintenance alerts
+- Inventory dashboard with:
+  - Stock levels by category
+  - Items needing restock
+  - Equipment maintenance due
+  - Vehicle service schedules
+
+**Example Workflow**:
+1. Dispatcher assigns rescue equipment to incident
+2. System checks availability, condition, location
+3. Alerts if maintenance due or low stock
+4. Assigns vehicle with sufficient fuel
+5. Tracks deployment duration
+6. On return, updates usage hours, fuel consumed
+7. Triggers restock order if supplies depleted below threshold
+8. Schedules maintenance if service interval reached
+
+### 14. Communications Copilot: AI-Assisted Situational Reports
+
+**Purpose**: Convert radio chatter and voice transcripts into structured reports, generate shift summaries, and provide AI-powered briefing assistance.
+
+**Key Components**:
+- **Comms Copilot Service** ([services/commsCopilotService.ts](services/commsCopilotService.ts)):
+  - **Voice-to-Text**: Real-time transcription of radio communications
+  - **Structured Parsing**: Extract key info (who, what, where, when, resources) from unstructured chatter
+  - **Shift Summaries**: Auto-generate end-of-shift reports with highlights
+  - **30-Second Briefs**: Concise incident summaries for rapid situational awareness
+  - **Smart Alerts**: Detect urgent keywords (fire, medical emergency, officer down)
+
+**AI Capabilities**:
+- Natural language understanding for incident extraction
+- Named entity recognition (locations, personnel, resources)
+- Sentiment analysis (urgency detection)
+- Timeline construction from transcript segments
+- Context-aware report generation
+
+**UI Integration** ([pages/IncidentDetail.tsx](pages/IncidentDetail.tsx)):
+- Comms panel with:
+  - Live transcript feed
+  - "Parse Transcript" button → structured report
+  - Key info extraction (actors, actions, resources, timeline)
+  - "Generate Shift Summary" for incidents since timestamp
+  - "Last 30 Brief" for quick situational awareness
+  - Urgent keyword highlighting
+
+**Example Workflow**:
+1. Radio chatter transcribed in real-time
+2. Dispatcher clicks "Parse Transcript"
+3. AI extracts: "Unit 7 reports structure fire at Main St, requesting 2 engines, 1 ladder"
+4. Structured report generated with actors, location, resources needed
+5. End of shift: "Generate Shift Summary" creates report of all incidents handled
+6. Incoming commander requests brief: "Last 30" provides 30-second overview
+
+### 15. Automated Incident Escalation Engine
+
+**Purpose**: Continuously monitor incidents against configurable rules and automatically escalate based on severity, duration, resource gaps, or other criteria.
+
+**Key Components**:
+- **Escalation Service** ([services/escalationService.ts](services/escalationService.ts)):
+  - **Rule Engine**: Configurable escalation rules with conditions and actions
+  - **Auto-Monitoring**: Continuous evaluation of active incidents
+  - **Action Handlers**: Automated responses (notifications, resource dispatch, protocol activation)
+  - **Escalation History**: Audit trail of all triggered escalations
+
+**Escalation Rules**:
+- Severity-based (High/Critical incidents auto-escalate)
+- Duration-based (incidents open >1hr trigger escalation)
+- Resource-based (gaps ≥3 trigger additional dispatch)
+- Custom rules with AND/OR logic
+
+**Automated Actions**:
+- `notify_command`: Alert command staff
+- `dispatch_additional`: Auto-request backup resources
+- `escalate_level`: Increase incident severity
+- `activate_protocol`: Trigger emergency protocols
+
+**UI Integration** ([pages/IncidentDetail.tsx](pages/IncidentDetail.tsx)):
+- Escalation Monitor panel showing:
+  - Active escalation rules
+  - Triggered events with timestamps
+  - Automated actions taken
+  - "Check Rules" manual evaluation
+  - Event history log
+
+**Example Workflow**:
+1. High-severity fire reported
+2. Escalation engine evaluates rules
+3. Matches "High Severity" rule → triggers "notify_command"
+4. Incident duration reaches 1hr → matches "Duration" rule → triggers "dispatch_additional"
+5. Resource gap detected (3 missing personnel) → triggers "escalate_level"
+6. All actions logged in audit trail
+7. Command staff receives notifications
+8. Additional resources automatically dispatched
+
+### 16. Safety Protocol & Pre-Deployment Checklists
+
+**Purpose**: Enforce mandatory safety checks before deploying responders with category-specific protocols and critical checkpoint validation.
+
+**Key Components**:
+- **Safety Protocol Service** ([services/safetyProtocolService.ts](services/safetyProtocolService.ts)):
+  - **Protocol Templates**: Pre-defined checklists for incident categories (Fire, Flood, Earthquake, Hazmat)
+  - **Critical Checkpoints**: Mandatory items that block deployment if incomplete
+  - **Checklist Lifecycle**: Creation, checkpoint completion, sign-off validation
+  - **Deployment Blocker**: Prevent deployment without critical safety checks
+
+**Safety Protocols**:
+- Fire: PPE verification, SCBA check, evacuation routes, water supply, accountability system
+- Flood: Water rescue gear, flotation devices, communication equipment, hazard zones
+- Earthquake: Structural assessment, aftershock monitoring, collapse zones, rescue equipment
+- Hazmat: Protective suits, detection equipment, decontamination setup, evacuation perimeter
+
+**Checkpoint Types**:
+- Critical (blocks deployment if incomplete)
+- Standard (recommended but not blocking)
+- Optional (nice-to-have)
+
+**UI Integration** ([pages/IncidentDetail.tsx](pages/IncidentDetail.tsx)):
+- Safety Protocols panel showing:
+  - "Start Checklist" for incident category
+  - Progress bar (completed/total checkpoints)
+  - Checkbox list with critical flags
+  - "Sign Off Checklist" validation
+  - Deployment blocker alerts
+
+**Example Workflow**:
+1. Fire incident reported
+2. Dispatcher clicks "Start Fire Checklist"
+3. Checklist created with 10 checkpoints (5 critical)
+4. Responders verify: PPE ✓, SCBA ✓, routes ✓...
+5. Attempt deployment with 1 critical incomplete → blocked
+6. Complete final critical checkpoint → deployment allowed
+7. Sign-off recorded in audit trail
+8. Checklist archived with incident
+
+### 17. Incident Handoff & Transfer Workflow
+
+**Purpose**: Structured incident transfer between responders/shifts with signature validation, briefing notes, and critical context preservation.
+
+**Key Components**:
+- **Handoff Service** ([services/handoffService.ts](services/handoffService.ts)):
+  - **Multi-Stage Workflow**: Proposed → Acknowledged → In Progress → Completed
+  - **Critical Context**: Briefing notes, situation summary, resources on-scene, hazard warnings
+  - **Signature Validation**: Digital signatures from both parties
+  - **Completeness Checks**: Ensure all required handoff fields present
+
+**Handoff Stages**:
+1. **Proposed**: Initiating responder proposes transfer
+2. **Acknowledged**: Receiving responder accepts handoff
+3. **In Progress**: Active briefing/transition
+4. **Completed**: Both parties sign off, incident transferred
+
+**Required Information**:
+- Briefing notes (current situation)
+- Critical context (key decisions, ongoing actions)
+- Resource inventory (personnel, equipment on-scene)
+- Hazard warnings (safety concerns, environmental risks)
+- Action items (pending tasks for receiving responder)
+
+**UI Integration** ([pages/IncidentDetail.tsx](pages/IncidentDetail.tsx)):
+- Incident Handoff panel showing:
+  - "Initiate Handoff" button
+  - Status progression indicators
+  - Acknowledge/Begin/Complete workflow buttons
+  - Critical context display (grid layout)
+  - Hazard warnings (highlighted)
+  - Signature validation
+
+**Example Workflow**:
+1. Day shift commander initiates handoff to night shift
+2. Provides briefing: "Active search, 2 still missing, resources deployed"
+3. Lists critical context: hazmat cleared, evacuation in sector B
+4. Warns: unstable structures in north quadrant
+5. Night shift commander acknowledges handoff
+6. Reviews briefing, asks clarifying questions
+7. Begins active transition
+8. Both sign off → incident transferred
+9. Handoff logged in audit trail
+
+### 18. Volunteer Scheduling & Shift Management
+
+**Purpose**: Manage volunteer shifts with conflict detection, fatigue monitoring, and optimal shift suggestions.
+
+**Key Components**:
+- **Scheduling Service** ([services/schedulingService.ts](services/schedulingService.ts)):
+  - **Shift Management**: Create, activate, complete shifts with duration tracking
+  - **Conflict Detection**: Identify double-booking, excessive hours, rest period violations
+  - **Availability Windows**: Track volunteer availability slots
+  - **Fatigue Monitoring**: Detect excessive consecutive hours, insufficient rest
+  - **Optimal Shift Suggestion**: AI-powered shift recommendations based on availability
+
+**Conflict Types**:
+- **Double Booking**: Volunteer assigned to overlapping shifts
+- **Excessive Hours**: Total hours exceed configured max (default: 12hr)
+- **Rest Period Violation**: <8hr between shifts (fatigue risk)
+
+**Shift States**:
+- `scheduled`: Future shift, not yet active
+- `active`: Currently in progress
+- `completed`: Finished, hours logged
+- `cancelled`: Shift cancelled before start
+
+**UI Integration** ([pages/IncidentDetail.tsx](pages/IncidentDetail.tsx)):
+- Scheduling panel showing:
+  - "Add Emergency Shift" button
+  - Conflict warnings (highlighted alerts)
+  - Shift list with status badges
+  - Duration and volunteer assignment
+  - Conflict details (type, severity)
+
+**Example Workflow**:
+1. Dispatcher creates emergency shift for EMT (8hr)
+2. System checks volunteer availability
+3. Detects conflict: EMT already scheduled 6hr shift
+4. Warns: "Excessive Hours - Total 14hr exceeds max 12hr"
+5. Dispatcher adjusts shift duration to 6hr
+6. Conflict cleared
+7. Shift activated, volunteer deployed
+8. After 6hr, shift completed, hours logged
+9. System checks rest period before next assignment
+10. Blocks new assignment if <8hr rest remaining
+
+### 19. Post-Incident Debrief & Lessons Learned
+
+**Purpose**: Conduct structured post-incident reviews with multi-participant questionnaires, action item tracking, and comprehensive reporting.
+
+**Key Components**:
+- **Debrief Service** ([services/debriefService.ts](services/debriefService.ts)):
+  - **Structured Sessions**: Multi-section questionnaires (response effectiveness, resources, coordination, lessons, safety)
+  - **Multi-Participant**: Multiple responders contribute responses
+  - **Action Item Tracking**: Capture improvements with owners and deadlines
+  - **Report Generation**: Export comprehensive debrief summary
+
+**Debrief Sections**:
+1. **Response Effectiveness**: What worked well, what didn't
+2. **Resource Allocation**: Adequate resources, gaps, waste
+3. **Team Coordination**: Communication quality, command clarity
+4. **Lessons Learned**: Key takeaways, training needs
+5. **Safety**: Safety issues, near-misses, protocol adherence
+
+**Question Types**:
+- Open-ended (narrative responses)
+- Multiple choice
+- Rating scales (1-5)
+- Yes/No with explanation
+
+**UI Integration** ([pages/IncidentDetail.tsx](pages/IncidentDetail.tsx)):
+- Debrief panel (only visible when incident resolved):
+  - "Start Debrief" button
+  - Session status (active/completed)
+  - Participant count
+  - Response count
+  - "Finalize Debrief" to complete
+  - Report export
+
+**Example Workflow**:
+1. Incident resolved, status changed to "Resolved"
+2. Incident commander clicks "Start Debrief"
+3. Debrief session created with 11 questions across 5 sections
+4. Participants submit responses:
+   - "Communication delays caused 15min response lag"
+   - "Need more thermal cameras for night operations"
+   - "Training needed on new PPE equipment"
+5. Commander adds action items:
+   - "Review communication protocols" (Owner: Training Chief, Due: 2 weeks)
+   - "Purchase 3 thermal cameras" (Owner: Logistics, Due: 1 month)
+6. All participants reviewed → "Finalize Debrief"
+7. Comprehensive report generated
+8. Report exported for archival and training purposes
+9. Action items tracked to completion
+
+### 20. Certification & Training Management
+
+**Purpose**: Track volunteer certifications, monitor expiry, manage training sessions, and identify skill gaps across the volunteer pool.
+
+**Key Components**:
+- **Certification Service** ([services/certificationService.ts](services/certificationService.ts)):
+  - **Certification Lifecycle**: Issue, renew, track expiry
+  - **Training Sessions**: Create, enroll, track completion
+  - **Skill Gap Analysis**: Identify missing certifications across incidents
+  - **Expiry Monitoring**: Alert on upcoming expirations (30-day warning)
+
+**Standard Certifications**:
+- CPR/First Aid (2yr validity)
+- EMT Basic (2yr validity)
+- Firefighter I (3yr validity)
+- Technical Rescue (3yr validity)
+- Hazmat Operations (1yr validity)
+- ICS-100/200 (no expiry)
+
+**Training Features**:
+- Session scheduling with max capacity
+- Enrollment management
+- Completion tracking with certificates
+- Skill validation
+- Renewal credit application
+
+**Skill Gap Analysis**:
+- Analyze incidents by required skills
+- Identify certification gaps in volunteer pool
+- Prioritize training needs
+- Generate training recommendations
+
+**Example Workflow**:
+1. New volunteer joins
+2. System issues CPR certification (valid 2 years)
+3. Volunteer enrolls in EMT training session
+4. Completes training → EMT certification issued
+5. 23 months later: system alerts "CPR expiring in 30 days"
+6. Volunteer renews CPR certification
+7. Analytics show gap: only 2 volunteers have Technical Rescue
+8. System recommends: "Schedule Technical Rescue training"
+9. Incident requires Hazmat → system identifies 3 certified volunteers
+10. Skill gap report: need more Hazmat-certified personnel
+
+---
+
+## Service Architecture
+
+All features are implemented as modular services in [services/](services/) directory:
+
+### Core Services
+- `celoService.ts` - Blockchain integration (Base/Celo)
+- `web3Service.ts` - Web3 wallet and contract interactions
+- `aiService.ts` - Gemini AI integration for translations and analysis
+- `notificationService.ts` - Multi-channel notifications (SMS, email, push)
+- `offlineService.ts` - Offline-first data sync and queueing
+
+### Trust & Security
+- `trustService.ts` - Dynamic trust scoring and reputation
+- `zkService.ts` - Zero-knowledge proofs for identity/credentials
+- `multiSigService.ts` - Multi-signature approval workflows
+- `auditTrailService.ts` - Immutable event logging and chain-of-custody
+- `evidenceService.ts` - Cryptographically signed evidence management
+- `secureChatService.ts` - End-to-end encrypted communications
+
+### Resource Management
+- `volunteerOptimizationService.ts` - Skill-based matching and load balancing
+- `logisticsService.ts` - Inventory, equipment, and vehicle management
+- `schedulingService.ts` - Shift scheduling with conflict detection
+- `certificationService.ts` - Certification lifecycle and training
+
+### Operational Intelligence
+- `analyticsService.ts` - Predictive models and decision intelligence
+- `workflowService.ts` - Playbook generation and task orchestration
+- `escalationService.ts` - Automated incident escalation
+- `safetyProtocolService.ts` - Pre-deployment safety checklists
+- `commsCopilotService.ts` - AI-assisted situational reports
+
+### Incident Lifecycle
+- `handoffService.ts` - Structured incident transfer workflow
+- `debriefService.ts` - Post-incident reviews and lessons learned
+- `stepDonationsService.ts` - Micro-grants tied to playbook steps
+- `baseVaultService.ts` - Smart contract fund management
+
+---
+
+## Technology Stack
+
+- **Frontend**: React 18 + TypeScript + Vite
+- **Styling**: Tailwind CSS
+- **AI**: Google Gemini API
+- **Blockchain**: Base (Ethereum L2) + Celo
+- **Maps**: Leaflet with multiple overlay sources
+- **State Management**: React hooks
+- **Build**: Vite (fast HMR, optimized production builds)
+
+---
+
+## Development
+
+### Project Structure
+```
+/services     - All service layer modules (20+ services)
+/pages        - React page components (Dashboard, IncidentDetail, etc.)
+/components   - Reusable UI components (Header, Sidebar, AiAssistant)
+/types.ts     - TypeScript type definitions
+/constants.tsx - App constants and configuration
+/mockData.ts  - Sample data for development/demo
+```
+
+### Key Files
+- [App.tsx](App.tsx) - Main app component with routing
+- [index.tsx](index.tsx) - App entry point
+- [vite.config.ts](vite.config.ts) - Vite configuration
+- [tsconfig.json](tsconfig.json) - TypeScript configuration
+
+### Building
+```bash
+npm run build  # Production build
+npm run preview # Preview production build
+```
+
+### Environment Variables
+Create `.env.local`:
+```
+VITE_GEMINI_API_KEY=your_gemini_key_here
+VITE_WAQI_TOKEN=your_waqi_token_here
+VITE_FLOOD_GEOJSON_URL=https://example.com/flood-zones.geojson
+```
+
+---
+
+## License
+
+MIT License - See LICENSE file for details
