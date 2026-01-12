@@ -160,3 +160,92 @@ export interface CommsStructuredReport {
   victimsCount?: number;
   vehiclesInvolved?: number;
 }
+
+// === SIMULATION & TRAINING TYPES ===
+
+export interface SimulationEvent {
+  id: string;
+  timestamp: number; // Relative to simulation start
+  type: 'incident_update' | 'resource_dispatch' | 'victim_update' | 'communication' | 'hazard_change' | 'decision_point';
+  description: string;
+  data: Record<string, any>;
+  incidentUpdates?: Partial<Incident>;
+}
+
+export interface SimulationScenario {
+  id: string;
+  title: string;
+  description: string;
+  category: IncidentCategory;
+  severity: Severity;
+  initialLocation: { lat: number; lng: number };
+  initialDescription: string;
+  estimatedDurationMins: number;
+  events: SimulationEvent[];
+  objectives: string[];
+  requiredCertifications?: string[];
+  difficulty: 'beginner' | 'intermediate' | 'advanced' | 'expert';
+  createdAt: number;
+  createdBy: string;
+}
+
+export interface SimulationRun {
+  id: string;
+  scenarioId: string;
+  userId: string;
+  startTime: number;
+  endTime?: number;
+  currentEventIndex: number;
+  isPaused: boolean;
+  isComplete: boolean;
+  timeScale: number; // 1 = real time, 60 = 60x speed
+  decisions: SimulationDecision[];
+  incidentState: Partial<Incident>;
+}
+
+export interface SimulationDecision {
+  timestamp: number;
+  eventId?: string;
+  decision: string;
+  responseTime: number; // ms from decision point presented to response given
+  isOptimal: boolean;
+  feedback?: string;
+}
+
+export interface TrainingScore {
+  id: string;
+  userId: string;
+  simulationRunId: string;
+  scenarioId: string;
+  scenarioTitle: string;
+  timestamp: number;
+  duration: number; // ms
+  score: number; // 0-100
+  decisions: {
+    total: number;
+    correct: number;
+    incorrect: number;
+  };
+  avgResponseTimeMs: number;
+  weakPoints: Array<{
+    eventId: string;
+    decision: string;
+    feedback: string;
+  }>;
+  certificationsEarned: string[];
+}
+
+export interface UserProgress {
+  userId: string;
+  completedModules: string[];
+  completedScenarios: string[];
+  trainingScores: TrainingScore[];
+  certifications: Array<{
+    name: string;
+    earnedAt: number;
+    expiresAt?: number;
+  }>;
+  totalTrainingTimeHours: number;
+  averageScore: number;
+  lastTrainingDate: number;
+}
