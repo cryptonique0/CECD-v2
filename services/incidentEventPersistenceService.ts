@@ -3,6 +3,7 @@
 // Used for reliability and crash recovery
 
 import type { Incident } from '../types';
+import { privacyPolicyService } from './privacyPolicyService';
 
 interface IncidentEvent {
   incidentId: string;
@@ -25,9 +26,11 @@ class IncidentEventPersistenceService {
     // TODO: Write to disk/db for durability
   }
 
-  // Get all events for an incident
+  // Get all events for an incident, enforcing privacy/retention
   getEventsForIncident(incidentId: string): IncidentEvent[] {
-    return this.eventLog.filter(e => e.incidentId === incidentId);
+    const events = this.eventLog.filter(e => e.incidentId === incidentId);
+    // Enforce retention/anonymization
+    return privacyPolicyService.enforceRetention(events, 'incident');
   }
 
   // Replay events for an incident (after crash)

@@ -2,6 +2,9 @@
 <img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
 </div>
 
+
+# CECD-v2: Emergency Response Platform
+
 # Run and deploy your AI Studio app
 
 This contains everything you need to run your app locally.
@@ -18,7 +21,38 @@ View your app in AI Studio: https://ai.studio/apps/drive/1of-5q8XEFbmKKg4WNnLD5z
 3. Run the app:
    `npm run dev`
 
-## Features
+
+## Major Features (2026)
+
+### Reliability & Chaos Engineering
+- Incident replay after crash (event persistence, replay)
+- Partial failure isolation (secure chat ≠ dispatch)
+- Chaos testing scenarios (simulate failures, latency)
+- SLA dashboards (uptime, latency, error rate)
+
+### Human Factors & UX at Scale
+- Cognitive load indicators (visualize user stress/task load)
+- Minimal mode for extreme emergencies (toggle UI)
+- One-tap critical actions (dispatch, SOS, lockdown)
+- Accessibility modes (colorblind, low-light, large text)
+
+### Proof of Impact Layer
+- Incident impact summaries (narrative + metrics)
+- Lives assisted, response time improvements
+- Region-level improvement reports
+- Public transparency dashboards
+
+### Governance, Compliance & Privacy
+- Role-based access control (RBAC) for all actions/resources
+- Audit logging (who, what, when, where, result)
+- Privacy/retention policy enforcement (auto-purge/anonymize)
+- Admin governance panel (user/role, audit, policy, SLA)
+
+### Production Readiness & Deployability
+- Automated integration & end-to-end tests (Jest, Playwright)
+- Deployment, scaling, and failover guide (see DEPLOYMENT_GUIDE.md)
+- Pilot deployment checklist (see PILOT_DEPLOYMENT_CHECKLIST.md)
+- Real-world API integration scaffolding (911, NGO, satellite, drone)
 
 ### 1. Predictive Dispatch & Routing
 - Uses live incident + responder locations to suggest pre-positioning, fastest safe routes, and reroute-aware ETAs on the dashboard.
@@ -845,6 +879,37 @@ VITE_GEMINI_API_KEY=your_gemini_key_here
 VITE_WAQI_TOKEN=your_waqi_token_here
 VITE_FLOOD_GEOJSON_URL=https://example.com/flood-zones.geojson
 ```
+
+---
+
+
+---
+
+## Deployment & Pilot Integration
+
+- See [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md) for deployment, scaling, and failover procedures.
+- See [PILOT_DEPLOYMENT_CHECKLIST.md](PILOT_DEPLOYMENT_CHECKLIST.md) for real-world API integration and pilot launch steps.
+
+---
+
+## Testing
+
+- Integration tests: `npm run test:integration` (Jest)
+- End-to-end tests: `npx playwright test` (Playwright)
+
+---
+
+## Governance & Compliance
+
+- Admin Governance Panel: `/AdminGovernancePanel` page
+- Audit log review, privacy/retention policy editor, user/role management
+
+---
+
+## Public Impact & Transparency
+
+- Proof of Impact Dashboard: `/PublicImpactDashboard` page
+- SLA & Reliability Dashboard: `/SLADashboard` page
 
 ---
 
