@@ -53,6 +53,12 @@ export interface User {
   isVerified: boolean;
   zkVerified?: boolean;
   status: 'Available' | 'Busy' | 'OffDuty';
+  // Privacy & Certifications
+  certifications?: string[]; // EMT-B, EMT-P, RN, MD, etc.
+  hasMFA?: boolean;
+  jurisdiction?: string;
+  consentGiven?: boolean;
+  dataRetentionPreference?: 'minimum' | 'standard' | 'maximum';
 }
 
 export interface Incident {
@@ -86,6 +92,22 @@ export interface Incident {
     isPublic?: boolean;
     summary?: string;
   };
+  // Jurisdiction & Compliance
+  jurisdiction?: 'EU' | 'US' | 'US_CALIFORNIA' | 'UK' | 'CANADA' | 'AUSTRALIA' | 'GLOBAL';
+  dataClassification?: 'public' | 'internal' | 'confidential' | 'restricted' | 'medical' | 'pii';
+  retentionPeriod?: number; // days
+  deletionScheduledAt?: number; // timestamp
+  anonymizedAt?: number; // timestamp
+  // Encrypted Fields
+  medicalNotes?: any; // EncryptedField or string
+  patientVitals?: any; // EncryptedField or object
+  personalInfo?: any; // EncryptedField or object
+  witnessStatements?: any; // EncryptedField or array
+  // GDPR/HIPAA
+  consentRequired?: boolean;
+  consentObtained?: boolean;
+  crossBorderTransfer?: boolean;
+  breachNotified?: boolean;
 }
 
 export interface PlaybookStep {
