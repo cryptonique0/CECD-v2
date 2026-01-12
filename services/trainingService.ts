@@ -54,6 +54,53 @@ export interface TrainingDrill {
   };
 }
 
+export interface TrainingScore {
+  id: string;
+  userId: string;
+  simulationRunId: string;
+  scenarioId: string;
+  scenarioTitle: string;
+  timestamp: number;
+  duration: number; // ms
+  score: number; // 0-100
+  decisions: {
+    total: number;
+    correct: number;
+    incorrect: number;
+  };
+  avgResponseTimeMs: number;
+  weakPoints: Array<{
+    eventId: string;
+    decision: string;
+    feedback: string;
+  }>;
+  certificationsEarned: string[];
+}
+
+export interface CertificationRequirement {
+  name: string;
+  description: string;
+  requiredModules: string[];
+  passingScore: number; // 0-100
+  mandatorySimulations: string[]; // Scenario IDs that must be completed
+  expiresAfterDays?: number;
+}
+
+export interface UserProgress {
+  userId: string;
+  completedModules: string[];
+  completedScenarios: string[];
+  trainingScores: TrainingScore[];
+  certifications: {
+    name: string;
+    earnedAt: number;
+    expiresAt?: number;
+  }[];
+  totalTrainingTimeHours: number;
+  averageScore: number;
+  lastTrainingDate: number;
+}
+
 interface TrainingService {
   createScenario(scenario: Omit<TrainingScenario, 'id' | 'createdAt' | 'updatedAt'>): TrainingScenario;
   getScenario(id: string): TrainingScenario | null;
@@ -69,6 +116,17 @@ interface TrainingService {
   getPastDrills(limit?: number): TrainingDrill[];
   generateTrainingPlan(participantId: string, targetSkills: string[]): { currentLevel: Record<string, number>; recommendedCourses: TrainingScenario[] };
   getSessionHistory(participantId: string): TrainingSession[];
+  // New simulation & certification methods
+  recordTrainingScore(simulationRunId: string, results: any, userId: string): TrainingScore;
+  canCertify(userId: string, certificationName: string): { canCertify: boolean; reasons: string[] };
+  issueCertification(userId: string, certificationName: string): boolean;
+  getUserCertifications(userId: string): Array<{ name: string; earnedAt: number; expiresAt?: number; isValid: boolean; daysUntilExpiry?: number }>;
+  getUserProgress(userId: string): UserProgress | null;
+  getUserScores(userId: string, limit?: number): TrainingScore[];
+  getTrainingStats(userId: string): any;
+  getLeaderboard(limit?: number): Array<{ userId: string; averageScore: number; completedScenarios: number; certifications: number }>;
+  identifyWeakPoints(userId: string): Array<{ topic: string; frequency: number; affectedScenarios: string[] }>;
+  getResponseTimeAnalysis(userId: string): any;
 }
 
 class TrainingServiceImpl implements TrainingService {
@@ -76,6 +134,9 @@ class TrainingServiceImpl implements TrainingService {
   private sessions: Map<string, TrainingSession> = new Map();
   private assessments: Map<string, SkillAssessment[]> = new Map();
   private drills: Map<string, TrainingDrill> = new Map();
+  private trainingScores: TrainingScore[] = [];
+  private userProgress: Map<string, UserProgress> = new Map();
+  private certifications: Map<string, CertificationRequirement> = new Map();
   private scenarioCounter = 0;
   private sessionCounter = 0;
   private assessmentCounter = 0;
@@ -83,6 +144,7 @@ class TrainingServiceImpl implements TrainingService {
 
   constructor() {
     this.initializeSampleScenarios();
+    this.initializeCertifications();
   }
 
   private initializeSampleScenarios() {
@@ -130,6 +192,56 @@ class TrainingServiceImpl implements TrainingService {
     ];
 
     scenarios.forEach(s => this.createScenario(s));
+  }
+
+  /**
+   * Initialize certification requirements
+   */
+  private initializeCertifications() {
+    const certRequirements: CertificationRequirement[] = [
+      {
+        name: 'EMT-B',
+        description: 'Emergency Medical Technician - Basic',
+        requiredModules: ['module-emt-basic'],
+        passingScore: 80,
+        mandatorySimulations: ['scenario-heart-attack'],
+        expiresAfterDays: 730 // 2 years
+      },
+      {
+        name: 'EMT-P',
+        description: 'Emergency Medical Technician - Paramedic',
+        requiredModules: ['module-emt-basic', 'module-emt-advanced'],
+        passingScore: 85,
+        mandatorySimulations: ['scenario-heart-attack'],
+        expiresAfterDays: 730
+      },
+      {
+        name: 'HAZMAT',
+        description: 'Hazardous Materials Technician',
+        requiredModules: ['module-hazmat'],
+        passingScore: 90,
+        mandatorySimulations: ['scenario-chemical-spill'],
+        expiresAfterDays: 365 // 1 year
+      },
+      {
+        name: 'ICS-100',
+        description: 'Introduction to the Incident Command System',
+        requiredModules: ['module-disaster-management'],
+        passingScore: 80,
+        mandatorySimulations: [],
+        expiresAfterDays: 1095 // 3 years
+      },
+      {
+        name: 'ICS-200',
+        description: 'Incident Command System for Line Officers',
+        requiredModules: ['module-disaster-management'],
+        passingScore: 85,
+        mandatorySimulations: ['scenario-earthquake'],
+        expiresAfterDays: 1095
+      }
+    ];
+
+    certRequirements.forEach(c => this.certifications.set(c.name, c));
   }
 
   createScenario(scenario: Omit<TrainingScenario, 'id' | 'createdAt' | 'updatedAt'>): TrainingScenario {
@@ -298,6 +410,290 @@ class TrainingServiceImpl implements TrainingService {
     return Array.from(this.sessions.values())
       .filter(s => s.participantId === participantId)
       .sort((a, b) => b.startTime - a.startTime);
+  }
+
+  // === NEW SIMULATION & CERTIFICATION METHODS ===
+
+  /**
+   * Record training score from simulation completion
+   */
+  recordTrainingScore(simulationRunId: string, results: any, userId: string): TrainingScore {
+    const score: TrainingScore = {
+      id: `score-${Date.now()}`,
+      userId,
+      simulationRunId,
+      scenarioId: results.scenarioId || '',
+      scenarioTitle: results.scenarioTitle,
+      timestamp: Date.now(),
+      duration: results.duration,
+      score: results.score,
+      decisions: results.decisions,
+      avgResponseTimeMs: results.avgResponseTimeMs,
+      weakPoints: results.weakPoints || [],
+      certificationsEarned: []
+    };
+
+    this.trainingScores.push(score);
+    this.updateUserProgress(userId, score);
+
+    return score;
+  }
+
+  /**
+   * Update user progress after training completion
+   */
+  private updateUserProgress(userId: string, score: TrainingScore) {
+    let progress = this.userProgress.get(userId);
+    if (!progress) {
+      progress = {
+        userId,
+        completedModules: [],
+        completedScenarios: [],
+        trainingScores: [],
+        certifications: [],
+        totalTrainingTimeHours: 0,
+        averageScore: 0,
+        lastTrainingDate: 0
+      };
+      this.userProgress.set(userId, progress);
+    }
+
+    if (!progress.completedScenarios.includes(score.scenarioId)) {
+      progress.completedScenarios.push(score.scenarioId);
+    }
+
+    progress.trainingScores.push(score);
+    progress.totalTrainingTimeHours += score.duration / (60 * 60 * 1000);
+    progress.lastTrainingDate = score.timestamp;
+
+    const avgScore = progress.trainingScores.reduce((sum, s) => sum + s.score, 0) / progress.trainingScores.length;
+    progress.averageScore = Math.round(avgScore);
+
+    this.userProgress.set(userId, progress);
+  }
+
+  /**
+   * Check if user can certify for a certification
+   */
+  canCertify(userId: string, certificationName: string): { canCertify: boolean; reasons: string[] } {
+    const certReq = this.certifications.get(certificationName);
+    if (!certReq) {
+      return { canCertify: false, reasons: [`Certification ${certificationName} not found`] };
+    }
+
+    const userProgress = this.userProgress.get(userId);
+    if (!userProgress) {
+      return {
+        canCertify: false,
+        reasons: ['No training records found. Complete required modules first.']
+      };
+    }
+
+    const reasons: string[] = [];
+
+    // Check mandatory simulation scores
+    for (const scenarioId of certReq.mandatorySimulations) {
+      const scenarioScores = userProgress.trainingScores.filter(s => s.scenarioId === scenarioId);
+      if (scenarioScores.length === 0) {
+        reasons.push(`Mandatory simulation not completed: ${scenarioId}`);
+      } else {
+        const bestScore = Math.max(...scenarioScores.map(s => s.score));
+        if (bestScore < certReq.passingScore) {
+          reasons.push(`Simulation score too low: ${bestScore}% (required ${certReq.passingScore}%)`);
+        }
+      }
+    }
+
+    // Check overall score requirements
+    if (certReq.passingScore > 0 && userProgress.averageScore < certReq.passingScore) {
+      reasons.push(`Overall score too low: ${userProgress.averageScore}% (required ${certReq.passingScore}%)`);
+    }
+
+    return {
+      canCertify: reasons.length === 0,
+      reasons
+    };
+  }
+
+  /**
+   * Issue certification to user
+   */
+  issueCertification(userId: string, certificationName: string): boolean {
+    const canCert = this.canCertify(userId, certificationName);
+    if (!canCert.canCertify) {
+      return false;
+    }
+
+    const progress = this.userProgress.get(userId);
+    if (!progress) return false;
+
+    const certReq = this.certifications.get(certificationName);
+    if (!certReq) return false;
+
+    const expiresAt = certReq.expiresAfterDays
+      ? Date.now() + certReq.expiresAfterDays * 24 * 60 * 60 * 1000
+      : undefined;
+
+    progress.certifications.push({
+      name: certificationName,
+      earnedAt: Date.now(),
+      expiresAt
+    });
+
+    return true;
+  }
+
+  /**
+   * Get user's current certifications
+   */
+  getUserCertifications(userId: string): Array<{
+    name: string;
+    earnedAt: number;
+    expiresAt?: number;
+    isValid: boolean;
+    daysUntilExpiry?: number;
+  }> {
+    const progress = this.userProgress.get(userId);
+    if (!progress) return [];
+
+    return progress.certifications.map(cert => {
+      const isValid = !cert.expiresAt || cert.expiresAt > Date.now();
+      const daysUntilExpiry = cert.expiresAt
+        ? Math.ceil((cert.expiresAt - Date.now()) / (24 * 60 * 60 * 1000))
+        : undefined;
+
+      return {
+        ...cert,
+        isValid,
+        daysUntilExpiry
+      };
+    });
+  }
+
+  /**
+   * Get user training progress
+   */
+  getUserProgress(userId: string): UserProgress | null {
+    return this.userProgress.get(userId) || null;
+  }
+
+  /**
+   * Get user's training scores
+   */
+  getUserScores(userId: string, limit: number = 10): TrainingScore[] {
+    return this.trainingScores
+      .filter(s => s.userId === userId)
+      .sort((a, b) => b.timestamp - a.timestamp)
+      .slice(0, limit);
+  }
+
+  /**
+   * Get training statistics
+   */
+  getTrainingStats(userId: string) {
+    const progress = this.userProgress.get(userId);
+    if (!progress) {
+      return {
+        totalScenarios: 0,
+        averageScore: 0,
+        totalHours: 0,
+        certifications: 0,
+        lastTraining: null
+      };
+    }
+
+    return {
+      totalScenarios: progress.completedScenarios.length,
+      averageScore: progress.averageScore,
+      totalHours: Math.round(progress.totalTrainingTimeHours),
+      certifications: progress.certifications.length,
+      lastTraining: progress.lastTrainingDate ? new Date(progress.lastTrainingDate) : null
+    };
+  }
+
+  /**
+   * Get leaderboard (top trainers by average score)
+   */
+  getLeaderboard(limit: number = 20): Array<{
+    userId: string;
+    averageScore: number;
+    completedScenarios: number;
+    certifications: number;
+  }> {
+    return Array.from(this.userProgress.values())
+      .map(p => ({
+        userId: p.userId,
+        averageScore: p.averageScore,
+        completedScenarios: p.completedScenarios.length,
+        certifications: p.certifications.length
+      }))
+      .sort((a, b) => b.averageScore - a.averageScore)
+      .slice(0, limit);
+  }
+
+  /**
+   * Identify weak points across user's training
+   */
+  identifyWeakPoints(userId: string): Array<{
+    topic: string;
+    frequency: number;
+    affectedScenarios: string[];
+  }> {
+    const scores = this.getUserScores(userId, 1000);
+    const weakPointMap = new Map<string, Set<string>>();
+
+    scores.forEach(score => {
+      score.weakPoints.forEach(wp => {
+        const topics = weakPointMap.get(wp.feedback) || new Set();
+        topics.add(score.scenarioId);
+        weakPointMap.set(wp.feedback, topics);
+      });
+    });
+
+    return Array.from(weakPointMap.entries())
+      .map(([topic, scenarios]) => ({
+        topic,
+        frequency: scenarios.size,
+        affectedScenarios: Array.from(scenarios)
+      }))
+      .sort((a, b) => b.frequency - a.frequency);
+  }
+
+  /**
+   * Get response time analysis
+   */
+  getResponseTimeAnalysis(userId: string) {
+    const scores = this.getUserScores(userId, 1000);
+
+    if (scores.length === 0) {
+      return {
+        averageMs: 0,
+        medianMs: 0,
+        fastestMs: 0,
+        slowestMs: 0,
+        trend: 'no_data'
+      };
+    }
+
+    const times = scores.map(s => s.avgResponseTimeMs).sort((a, b) => a - b);
+    const average = times.reduce((a, b) => a + b, 0) / times.length;
+    const median = times[Math.floor(times.length / 2)];
+    const fastest = times[0];
+    const slowest = times[times.length - 1];
+
+    const recent = scores.slice(0, 5);
+    const older = scores.slice(-5);
+    const recentAvg = recent.reduce((sum, s) => sum + s.avgResponseTimeMs, 0) / recent.length;
+    const olderAvg = older.reduce((sum, s) => sum + s.avgResponseTimeMs, 0) / older.length;
+    const trend = recentAvg < olderAvg ? 'improving' : recentAvg > olderAvg ? 'degrading' : 'stable';
+
+    return {
+      averageMs: Math.round(average),
+      medianMs: Math.round(median),
+      fastestMs: fastest,
+      slowestMs: slowest,
+      trend
+    };
   }
 }
 
