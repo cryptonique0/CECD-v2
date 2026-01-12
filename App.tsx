@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
+import MobileResponderPanel from './components/MobileResponderPanel';
 import Dashboard from './pages/Dashboard';
 import Incidents from './pages/Incidents';
 import IncidentDetail from './pages/IncidentDetail';
@@ -187,6 +188,14 @@ const App: React.FC = () => {
             </Routes>
           </div>
         </main>
+        
+        {/* Mobile Responder Quick Panel */}
+        <MobileResponderPanel 
+          currentUser={currentUser}
+          incidents={incidents}
+          onStatusChange={(newStatus) => updateVolunteerStatus(currentUser.id, newStatus)}
+          onNavigateToIncident={(id) => setMobileMenuOpen(false)}
+        />
         
         <AiAssistant />
       </div>
