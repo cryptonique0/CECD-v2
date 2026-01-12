@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { alertManagementService, Alert, AlertRule } from '../services/alertManagementService';
 import { useNavigate } from 'react-router-dom';
 
@@ -59,11 +59,21 @@ const AlertsManager: React.FC = () => {
 
   const handleCreateRule = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!newRuleName.trim()) {
+      return;
+    }
+
+    const threshold = parseInt(newRuleThreshold);
+    if (isNaN(threshold) || threshold <= 0) {
+      return;
+    }
+
     const rule = alertManagementService.createRule({
-      name: newRuleName,
-      description: `Monitor for ${newRuleCondition}`,
+      name: newRuleName.trim(),
+      description: `Monitor for ${newRuleCondition} - triggers when threshold exceeds ${threshold}`,
       condition: newRuleCondition,
-      threshold: parseInt(newRuleThreshold),
+      threshold,
       timeWindow: 60,
       enabled: true,
       actions: [
@@ -74,6 +84,7 @@ const AlertsManager: React.FC = () => {
         },
       ],
     });
+    
     setNewRuleName('');
     setNewRuleCondition('incident_count');
     setNewRuleThreshold('10');
@@ -98,6 +109,25 @@ const AlertsManager: React.FC = () => {
   const handleResolveAlert = (alertId: string) => {
     alertManagementService.resolveAlert(alertId);
   };
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      // Ctrl/Cmd + K to focus search
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        const searchInput = document.querySelector<HTMLInputElement>('input[placeholder="Search alerts..."]');
+        searchInput?.focus();
+      }
+      // Escape to clear search
+      if (e.key === 'Escape' && searchQuery) {
+        setSearchQuery('');
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, [searchQuery]);
 
   return (
     <div className="p-6 md:p-8 flex flex-col gap-6 h-full">
