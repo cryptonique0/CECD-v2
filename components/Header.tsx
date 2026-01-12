@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { User, Notification } from '../types';
+import { User } from '../types';
+import NotificationButton from './NotificationButton';
 
 interface HeaderProps {
   user: User;
@@ -9,10 +10,44 @@ interface HeaderProps {
   onMobileMenuToggle?: (open: boolean) => void;
 }
 
+// Helper function to get page title from route
+const getPageTitle = (pathname: string): string => {
+  const titleMap: { [key: string]: string } = {
+    '/dashboard': 'Dashboard',
+    '/incidents': 'Incidents',
+    '/volunteers': 'Volunteers',
+    '/teams': 'Teams',
+    '/analytics': 'Analytics',
+    '/training': 'Training',
+    '/profile': 'Profile',
+    '/admin': 'Admin Governance',
+    '/report': 'Report Incident',
+  };
+  
+  for (const [path, title] of Object.entries(titleMap)) {
+    if (pathname.startsWith(path)) {
+      return title;
+    }
+  }
+  return 'CECD';
+};
+
+// Helper function to format time ago
+const getTimeAgo = (timestamp: number): string => {
+  const now = Date.now();
+  const diff = now - timestamp;
+  
+  if (diff < 60000) return 'Just now';
+  if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
+  if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
+  if (diff < 604800000) return `${Math.floor(diff / 86400000)}d ago`;
+  
+  return new Date(timestamp).toLocaleDateString();
+};
+
 const Header: React.FC<HeaderProps> = ({ user, walletProvider, mobileMenuOpen = false, onMobileMenuToggle }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [showNotifications, setShowNotifications] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearch, setShowSearch] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -22,14 +57,6 @@ const Header: React.FC<HeaderProps> = ({ user, walletProvider, mobileMenuOpen = 
     const timer = setInterval(() => setCurrentTime(new Date()), 60000);
     return () => clearInterval(timer);
   }, []);
-
-  const [notifications, setNotifications] = useState<Notification[]>([
-    { id: 'n1', type: 'incident', title: 'Critical Incident', message: 'New flash flood alert in District 4', severity: 'critical', timestamp: Date.now() - 120000, read: false },
-    { id: 'n2', type: 'donation', title: 'Donation Received', message: 'Received 0.25 ETH for INC-2024-001', severity: 'info', timestamp: Date.now() - 3600000, read: false },
-    { id: 'n3', type: 'system', title: 'Sync Complete', message: 'Offline reports synchronized to Base ledger', severity: 'info', timestamp: Date.now() - 7200000, read: true }
-  ]);
-
-  const unreadCount = notifications.filter(n => !n.read).length;
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -62,7 +89,7 @@ const Header: React.FC<HeaderProps> = ({ user, walletProvider, mobileMenuOpen = 
           <div className="hidden sm:flex items-center gap-2">
             <span className="text-white/40 text-sm">CECD</span>
             <span className="material-symbols-outlined text-white/20 text-sm">chevron_right</span>
-            <span className="text-white font-semibold text-sm">{getPageTitle()}</span>
+            <span className="text-white font-semibold text-sm">{getPageTitle(location.pathname)}</span>
           </div>
         </div>
 
@@ -132,94 +159,14 @@ const Header: React.FC<HeaderProps> = ({ user, walletProvider, mobileMenuOpen = 
 
           <div className="h-6 w-px bg-white/10 mx-1 hidden sm:block"></div>
 
-          {/* Notifications */}
-          <div className="relative">
-            <button 
-              onClick={() => setShowNotifications(!showNotifications)}
-              className={`relative p-2 rounded-xl transition-all ${
-                showNotifications 
-                  ? 'bg-primary/20 text-primary' 
-                  : 'text-white/60 hover:text-white hover:bg-white/10'
-              }`}
-            >
-              <span className="material-symbols-outlined">notifications</span>
-              {unreadCount > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] flex items-center justify-center bg-red-500 text-white text-[10px] font-bold rounded-full px-1 border-2 border-background-dark">
-                  {unreadCount}
-                </span>
-              )}
-            </button>
-
-            {showNotifications && (
-              <>
-                <div className="fixed inset-0 z-40" onClick={() => setShowNotifications(false)}></div>
-                <div className="absolute right-0 mt-2 w-80 md:w-96 bg-slate-900 border border-white/10 rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-                  <div className="px-4 py-3 border-b border-white/10 flex justify-between items-center bg-gradient-to-r from-slate-800 to-slate-900">
-                    <div className="flex items-center gap-2">
-                      <span className="material-symbols-outlined text-primary text-lg">notifications</span>
-                      <h4 className="text-sm font-bold text-white">Notifications</h4>
-                      {unreadCount > 0 && (
-                        <span className="px-2 py-0.5 rounded-full bg-primary/20 text-primary text-[10px] font-bold">{unreadCount} new</span>
-                      )}
-                    </div>
-                    {unreadCount > 0 && (
-                      <button 
-                        onClick={markAllAsRead}
-                        className="text-[10px] text-primary hover:text-primary/80 font-semibold transition-colors"
-                      >
-                        Mark all read
-                      </button>
-                    )}
-                  </div>
-                  <div className="max-h-[400px] overflow-y-auto custom-scrollbar">
-                    {notifications.length === 0 ? (
-                      <div className="p-8 text-center">
-                        <span className="material-symbols-outlined text-4xl text-white/20 mb-2">notifications_off</span>
-                        <p className="text-sm text-white/40">No notifications</p>
-                      </div>
-                    ) : (
-                      notifications.map(n => (
-                        <div 
-                          key={n.id} 
-                          onClick={() => { markAsRead(n.id); navigate('/incidents'); setShowNotifications(false); }}
-                          className={`p-4 border-b border-white/5 hover:bg-white/5 transition-colors cursor-pointer ${!n.read ? 'bg-primary/5' : ''}`}
-                        >
-                          <div className="flex gap-3">
-                            <div className={`shrink-0 p-2 rounded-xl ${
-                              n.severity === 'critical' ? 'bg-red-500/20 text-red-400' : 
-                              n.type === 'donation' ? 'bg-emerald-500/20 text-emerald-400' : 
-                              'bg-primary/20 text-primary'
-                            }`}>
-                              <span className="material-symbols-outlined text-lg">
-                                {n.type === 'donation' ? 'payments' : n.type === 'incident' ? 'emergency' : 'info'}
-                              </span>
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center justify-between gap-2">
-                                <p className="text-sm font-semibold text-white truncate">{n.title}</p>
-                                {!n.read && <span className="size-2 rounded-full bg-primary flex-shrink-0"></span>}
-                              </div>
-                              <p className="text-xs text-white/60 line-clamp-2 mt-0.5">{n.message}</p>
-                              <p className="text-[10px] text-white/40 mt-1.5 font-medium">{getTimeAgo(n.timestamp)}</p>
-                            </div>
-                          </div>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                  <div className="p-3 border-t border-white/10 bg-slate-900">
-                    <button 
-                      onClick={() => { navigate('/incidents'); setShowNotifications(false); }}
-                      className="w-full py-2 text-xs font-semibold text-primary hover:text-primary/80 transition-colors flex items-center justify-center gap-1"
-                    >
-                      View all activity
-                      <span className="material-symbols-outlined text-sm">arrow_forward</span>
-                    </button>
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
+          {/* Notifications - Using NotificationButton Component */}
+          <NotificationButton 
+            userId={user.id} 
+            onNavigate={() => {
+              navigate('/incidents');
+              setShowNotifications(false);
+            }}
+          />
 
           {/* User Profile */}
           <div 

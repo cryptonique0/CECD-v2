@@ -24,6 +24,11 @@ import { handoffService, HandoffPacket } from '../services/handoffService';
 import { schedulingService, ShiftSchedule, ScheduleConflict } from '../services/schedulingService';
 import { debriefService, DebriefSession } from '../services/debriefService';
 import { certificationService, VolunteerCertification } from '../services/certificationService';
+// New UI Components
+import ChatWindow from '../components/ChatWindow';
+import TimelineView from '../components/TimelineView';
+import ResourcePanel from '../components/ResourcePanel';
+import AlertsPanel from '../components/AlertsPanel';
 
 interface IncidentDetailProps {
   incidents: Incident[];
@@ -83,6 +88,9 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incidents, setIncidents
   const [showEscalationPanel, setShowEscalationPanel] = useState(false);
   const [showSafetyPanel, setShowSafetyPanel] = useState(false);
   const [showHandoffPanel, setShowHandoffPanel] = useState(false);
+
+  // UI Tab State
+  const [activeDetailTab, setActiveDetailTab] = useState<'details' | 'timeline' | 'chat' | 'resources' | 'alerts'>('details');
 
   const chatEndRef = useRef<HTMLDivElement>(null);
 
@@ -465,7 +473,33 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incidents, setIncidents
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      {/* New Tab Interface for Enhanced Features */}
+      <div className="flex gap-2 border-b border-border-dark overflow-x-auto pb-4 mb-6">
+        {[
+          { id: 'details', label: 'Details', icon: 'description' },
+          { id: 'timeline', label: 'Timeline', icon: 'timeline' },
+          { id: 'chat', label: 'Communications', icon: 'chat' },
+          { id: 'resources', label: 'Resources', icon: 'inventory_2' },
+          { id: 'alerts', label: 'Alerts', icon: 'warning' }
+        ].map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveDetailTab(tab.id as any)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-all whitespace-nowrap ${
+              activeDetailTab === tab.id
+                ? 'bg-primary/20 border-primary/50 text-primary font-semibold'
+                : 'border-border-dark text-text-secondary hover:border-primary/30 hover:text-white'
+            }`}
+          >
+            <span className="material-symbols-outlined text-sm">{tab.icon}</span>
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Tab Content */}
+      {activeDetailTab === 'details' && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         <div className="lg:col-span-8 flex flex-col gap-6">
           <section className="bg-card-dark rounded-2xl border border-border-dark p-6">
             <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2 uppercase tracking-tight">
@@ -2021,6 +2055,31 @@ const IncidentDetail: React.FC<IncidentDetailProps> = ({ incidents, setIncidents
           )}
 
         </div>
+      )}
+
+      {/* Timeline Tab */}
+      {activeDetailTab === 'timeline' && (
+        <TimelineView incidentId={incident.id} userId={currentUser.id} />
+      )}
+
+      {/* Chat/Communications Tab */}
+      {activeDetailTab === 'chat' && (
+        <ChatWindow 
+          incidentId={incident.id} 
+          userId={currentUser.id} 
+          userName={currentUser.name}
+        />
+      )}
+
+      {/* Resources Tab */}
+      {activeDetailTab === 'resources' && (
+        <ResourcePanel incidentId={incident.id} />
+      )}
+
+      {/* Alerts Tab */}
+      {activeDetailTab === 'alerts' && (
+        <AlertsPanel incidentId={incident.id} />
+      )}
       </div>
     </div>
   );
