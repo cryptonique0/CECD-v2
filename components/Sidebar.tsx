@@ -18,6 +18,9 @@ const Sidebar: React.FC<SidebarProps> = ({ role, onLogout }) => {
     { to: '/', label: 'Dashboard', icon: 'space_dashboard', description: 'Command center overview' },
     { to: '/incidents', label: 'Incidents', icon: 'emergency_home', description: 'Emergency ledger', badge: 3 },
     { to: '/volunteers', label: 'Responders', icon: 'diversity_3', description: 'Global network' },
+    { to: '/teams', label: 'Teams', icon: 'groups', description: 'Crew management' },
+    { to: '/analytics', label: 'Analytics', icon: 'analytics', description: 'Performance metrics' },
+    { to: '/training', label: 'Training', icon: 'school', description: 'Drills & courses' },
     { to: '/admin', label: 'Governance', icon: 'admin_panel_settings', description: 'Protocol settings', adminOnly: true },
     { to: '/profile', label: 'Profile', icon: 'person', description: 'Your settings' },
   ];

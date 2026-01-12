@@ -12,6 +12,9 @@ import AdminGovernance from './pages/AdminGovernance';
 import Profile from './pages/Profile';
 import Login from './pages/Login';
 import AiAssistant from './components/AiAssistant';
+import Teams from './pages/Teams';
+import Analytics from './pages/Analytics';
+import Training from './pages/Training';
 import { Incident, User, Role } from './types';
 import { initialUsers, initialIncidents } from './mockData';
 import { aiService } from './services/aiService';
@@ -181,6 +184,9 @@ const App: React.FC = () => {
               <Route path="/incidents/:id" element={<IncidentDetail incidents={incidents} setIncidents={setIncidents} currentUser={currentUser} volunteers={volunteers} />} />
               <Route path="/report" element={<ReportIncident onSubmit={addIncident} currentUser={currentUser} isWhisperMode={globalWhisperMode} setIsWhisperMode={setGlobalWhisperMode} />} />
               <Route path="/volunteers" element={<Volunteers volunteers={volunteers} onUpdateStatus={updateVolunteerStatus} onAddVolunteer={addVolunteer} />} />
+              <Route path="/teams" element={<Teams currentUser={currentUser} />} />
+              <Route path="/analytics" element={<Analytics incidents={incidents} />} />
+              <Route path="/training" element={<Training currentUser={currentUser} />} />
               <Route path="/admin" element={<AdminGovernance />} />
               <Route path="/profile" element={<Profile user={currentUser} />} />
               <Route path="/login" element={<Navigate to="/" replace />} />
