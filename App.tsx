@@ -24,6 +24,7 @@ const App: React.FC = () => {
   const [incidents, setIncidents] = useState<Incident[]>(initialIncidents);
   const [volunteers, setVolunteers] = useState<User[]>(initialUsers);
   const [globalWhisperMode, setGlobalWhisperMode] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const lastResolvedCoords = useRef<{lat: number, lng: number} | null>(null);
   const currentUserIdRef = useRef<string>(currentUser.id);
@@ -153,10 +154,24 @@ const App: React.FC = () => {
   return (
     <Router>
       <div className="flex h-screen w-full bg-background-dark overflow-hidden">
+        {/* Desktop Sidebar */}
         <Sidebar role={currentUser.role} onLogout={handleLogout} />
         
+        {/* Mobile Sidebar Overlay */}
+        {mobileMenuOpen && (
+          <div 
+            className="fixed inset-0 bg-black/50 z-40 md:hidden"
+            onClick={() => setMobileMenuOpen(false)}
+          />
+        )}
+        
+        {/* Mobile Sidebar */}
+        <div className={`fixed left-0 top-0 h-full w-64 bg-gradient-to-b from-slate-900 to-slate-950 border-r border-white/5 z-50 md:hidden transform transition-transform duration-300 ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+          <Sidebar role={currentUser.role} onLogout={() => { handleLogout(); setMobileMenuOpen(false); }} />
+        </div>
+        
         <main className="flex-1 flex flex-col min-w-0 relative h-full">
-          <Header user={currentUser} walletProvider={walletProvider} />
+          <Header user={currentUser} walletProvider={walletProvider} mobileMenuOpen={mobileMenuOpen} onMobileMenuToggle={setMobileMenuOpen} />
           
           <div className="flex-1 overflow-y-auto custom-scrollbar">
             <Routes>

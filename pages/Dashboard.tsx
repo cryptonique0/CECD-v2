@@ -875,9 +875,27 @@ const Dashboard: React.FC<DashboardProps> = ({ incidents, volunteers = [], curre
       {/* Analytics Summary & System Health */}
       {(responseTimeMetrics.length > 0 || successRates.length > 0 || responderPerformance.length > 0) && (
         <section className="bg-card-dark rounded-2xl border border-border-dark p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <span className="material-symbols-outlined text-purple-400">health_and_safety</span>
-            <h3 className="text-lg font-bold text-white uppercase tracking-tight">System Health & Intelligence Summary</h3>
+          <div className="flex items-center justify-between gap-2 mb-4">
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-purple-400">health_and_safety</span>
+              <h3 className="text-lg font-bold text-white uppercase tracking-tight">System Health & Intelligence Summary</h3>
+            </div>
+            <div className="flex gap-2">
+              <button 
+                onClick={() => analyticsService.downloadAnalyticsAsJSON(incidents, volunteers)}
+                className="px-3 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-white text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-1"
+                title="Export analytics as JSON"
+              >
+                <span className="material-symbols-outlined text-sm">download</span> JSON
+              </button>
+              <button 
+                onClick={() => analyticsService.downloadAnalyticsAsCSV(incidents, volunteers)}
+                className="px-3 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-white text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-1"
+                title="Export analytics as CSV"
+              >
+                <span className="material-symbols-outlined text-sm">download</span> CSV
+              </button>
+            </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* KPI 1: Overall Success Rate */}

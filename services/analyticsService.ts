@@ -247,5 +247,67 @@ export const analyticsService = {
     }));
     sims.forEach(sim => auditTrailService.recordEvent(sim.id, 'system', 'DRILL_SIMULATED', `Scenario ${scenario} @ ${region}`));
     return sims;
-  }
-};
+  },
+
+  exportAnalyticsReport(incidents: Incident[], volunteers: User[]): {
+    timestamp: number;
+    totalIncidents: number;
+    resolvedIncidents: number;
+    successRate: number;
+    topResponders: ResponderPerformance[];
+    categoryBreakdown: SuccessRateByCategory[];
+    regionReadiness: Array<any>;
+  } {
+    const resolvedIncidents = incidents.filter(i => i.status === IncidentStatus.RESOLVED || i.status === IncidentStatus.CLOSED).length;
+    const successRate = incidents.length > 0 ? resolvedIncidents / incidents.length : 0;
+    
+    return {
+      timestamp: Date.now(),
+      totalIncidents: incidents.length,
+      resolvedIncidents,
+      successRate: Math.round(successRate * 100) / 100,
+      topResponders: this.getResponderPerformanceHeatmap(incidents, volunteers).slice(0, 5),
+      categoryBreakdown: this.getSuccessRateByCategory(incidents),
+      regionReadiness: this.getReadinessByRegion(incidents, volunteers)
+    };
+  },
+
+  downloadAnalyticsAsJSON(incidents: Incident[], volunteers: User[]): void {
+    const report = this.exportAnalyticsReport(incidents, volunteers);
+    const dataStr = JSON.stringify(report, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `analytics-${new Date().toISOString().split('T')[0]}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+  },
+
+  downloadAnalyticsAsCSV(incidents: Incident[], volunteers: User[]): void {
+    const report = this.exportAnalyticsReport(incidents, volunteers);
+    const rows = [
+      ['Analytics Report', new Date().toISOString()],
+      [],
+      ['Metric', 'Value'],
+      ['Total Incidents', report.totalIncidents],
+      ['Resolved Incidents', report.resolvedIncidents],
+      ['Success Rate (%)', Math.round(report.successRate * 100)],
+      [],
+      ['Top Responders'],
+      ['Name', 'Skill', 'Incidents Responded', 'Success Rate (%)', 'Avg Response (min)'],
+      ...report.topResponders.map(r => [r.name, r.skillPrimary, r.incidentsResponded, Math.round(r.successRate * 100), r.avgResponseTimeMins]),
+      [],
+      ['Success by Category'],
+      ['Category', 'Resolved', 'Total', 'Success Rate (%)', 'Avg Resolution (min)'],
+      ...report.categoryBreakdown.map(c => [c.category, c.resolved, c.total, Math.round(c.successRate * 100), c.avgResolutionTimeMins])
+    ];
+
+    const csv = rows.map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `analytics-${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);

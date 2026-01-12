@@ -5,9 +5,11 @@ import { User, Notification } from '../types';
 interface HeaderProps {
   user: User;
   walletProvider?: string;
+  mobileMenuOpen?: boolean;
+  onMobileMenuToggle?: (open: boolean) => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ user, walletProvider }) => {
+const Header: React.FC<HeaderProps> = ({ user, walletProvider, mobileMenuOpen = false, onMobileMenuToggle }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [showNotifications, setShowNotifications] = useState(false);
@@ -48,8 +50,12 @@ const Header: React.FC<HeaderProps> = ({ user, walletProvider }) => {
         {/* Left Section */}
         <div className="flex items-center gap-4">
           {/* Mobile Menu */}
-          <button className="md:hidden p-2 rounded-xl text-white/60 hover:text-white hover:bg-white/10 transition-all">
-            <span className="material-symbols-outlined">menu</span>
+          <button 
+            onClick={() => onMobileMenuToggle?.(!mobileMenuOpen)}
+            className={`md:hidden p-2 rounded-xl transition-all ${mobileMenuOpen ? 'bg-primary/20 text-primary' : 'text-white/60 hover:text-white hover:bg-white/10'}`}
+            title="Toggle Navigation Menu"
+          >
+            <span className="material-symbols-outlined">{mobileMenuOpen ? 'close' : 'menu'}</span>
           </button>
           
           {/* Breadcrumb / Page Title */}
