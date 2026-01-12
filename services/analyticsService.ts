@@ -1,14 +1,152 @@
 import { Incident, IncidentCategory, IncidentStatus, Severity, User } from "../types";
 import { playbookService } from "./playbookService";
 import { auditTrailService } from "./auditTrailService";
+
+export interface ResponseTimeMetric {
+  day: number;
+  avgResponseTimeMins: number;
+  medianResponseTimeMins: number;
+  p95ResponseTimeMins: number;
+  incidentsResponded: number;
+}
+
+export interface SuccessRateByCategory {
+  category: IncidentCategory;
+  resolved: number;
+  total: number;
+  successRate: number;
+  avgResolutionTimeMins: number;
+}
+
+export interface ResponderPerformance {
+  id: string;
+  name: string;
+  skillPrimary: string;
+  incidentsResponded: number;
+  avgResponseTimeMins: number;
+  successRate: number;
+  trustScore: number;
+  location: string;
+  status: string;
+}
+
 export const analyticsService = {
   async get30DayTrends() {
-    // Mock data for time-series analysis
-    return Array.from({ length: 30 }, (_, i) => ({
-      day: i + 1,
-      incidents: Math.floor(Math.random() * 10) + (i > 20 ? 15 : 0), // Simulate a recent spike
-      resolved: Math.floor(Math.random() * 8)
-    }));
+    // Mock data for time-series analysis with more realistic patterns
+    return Array.from({ length: 30 }, (_, i) => {
+      const baseIncidents = 5 + Math.floor(i / 10) * 3;
+      const variance = Math.sin(i * 0.3) * 3;
+      return {
+        day: i + 1,
+        incidents: Math.max(1, Math.floor(baseIncidents + variance + Math.random() * 4)),
+        resolved: Math.max(0, Math.floor(baseIncidents * 0.8 + Math.random() * 2)),
+        avgResponseTime: 8 + Math.random() * 6,
+        successRate: 0.82 + Math.random() * 0.15
+      };
+    });
+  },
+
+  getResponseTimeMetrics(incidents: Incident[]): ResponseTimeMetric[] {
+    const byDay = new Map<number, number[]>();
+    const now = Date.now();
+    
+    incidents.forEach(inc => {
+      const dayOfWeek = Math.floor((now - inc.timestamp) / (24 * 60 * 60 * 1000)) % 30;
+      if (dayOfWeek >= 0 && dayOfWeek < 30) {
+        if (!byDay.has(dayOfWeek)) byDay.set(dayOfWeek, []);
+        
+        // Simulate response time in minutes
+        const responseTime = 5 + Math.random() * 15;
+        byDay.get(dayOfWeek)!.push(responseTime);
+      }
+    });
+
+    return Array.from({ length: 30 }, (_, i) => {
+      const responseTimes = byDay.get(i) || [];
+      if (responseTimes.length === 0) {
+        return {
+          day: i + 1,
+          avgResponseTimeMins: 0,
+          medianResponseTimeMins: 0,
+          p95ResponseTimeMins: 0,
+          incidentsResponded: 0
+        };
+      }
+      
+      responseTimes.sort((a, b) => a - b);
+      const avg = responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length;
+      const median = responseTimes[Math.floor(responseTimes.length / 2)];
+      const p95 = responseTimes[Math.floor(responseTimes.length * 0.95)];
+
+      return {
+        day: i + 1,
+        avgResponseTimeMins: Math.round(avg * 10) / 10,
+        medianResponseTimeMins: Math.round(median * 10) / 10,
+        p95ResponseTimeMins: Math.round(p95 * 10) / 10,
+        incidentsResponded: responseTimes.length
+      };
+    });
+  },
+
+  getSuccessRateByCategory(incidents: Incident[]): SuccessRateByCategory[] {
+    const byCategory = new Map<IncidentCategory, Incident[]>();
+    
+    incidents.forEach(inc => {
+      if (!byCategory.has(inc.category)) {
+        byCategory.set(inc.category, []);
+      }
+      byCategory.get(inc.category)!.push(inc);
+    });
+
+    return Array.from(byCategory.entries()).map(([category, incs]) => {
+      const resolved = incs.filter(i => i.status === IncidentStatus.RESOLVED || i.status === IncidentStatus.CLOSED).length;
+      const total = incs.length;
+      const successRate = total > 0 ? resolved / total : 0;
+      
+      const resolutionTimes = incs
+        .filter(i => i.status === IncidentStatus.RESOLVED || i.status === IncidentStatus.CLOSED)
+        .map(i => (Date.now() - i.timestamp) / (60 * 1000));
+      
+      const avgResolutionTime = resolutionTimes.length > 0
+        ? resolutionTimes.reduce((a, b) => a + b, 0) / resolutionTimes.length
+        : 0;
+
+      return {
+        category,
+        resolved,
+        total,
+        successRate: Math.round(successRate * 100) / 100,
+        avgResolutionTimeMins: Math.round(avgResolutionTime * 10) / 10
+      };
+    }).sort((a, b) => b.successRate - a.successRate);
+  },
+
+  getResponderPerformanceHeatmap(incidents: Incident[], volunteers: User[]): ResponderPerformance[] {
+    return volunteers.map(vol => {
+      const assigned = incidents.filter(inc => inc.assignedResponders.includes(vol.id));
+      const resolved = assigned.filter(inc => inc.status === IncidentStatus.RESOLVED || inc.status === IncidentStatus.CLOSED).length;
+      
+      const responseTimes = assigned.map(inc => (Date.now() - inc.timestamp) / (60 * 1000));
+      const avgResponseTime = responseTimes.length > 0 
+        ? Math.round(responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length * 10) / 10
+        : 0;
+      
+      const successRate = assigned.length > 0 
+        ? Math.round((resolved / assigned.length) * 100) / 100
+        : 0;
+
+      return {
+        id: vol.id,
+        name: vol.name,
+        skillPrimary: vol.skills[0] || 'General',
+        incidentsResponded: assigned.length,
+        avgResponseTimeMins: avgResponseTime,
+        successRate,
+        trustScore: vol.trustScore,
+        location: vol.location || 'Unknown',
+        status: vol.status
+      };
+    }).sort((a, b) => b.successRate - a.successRate);
   },
 
   async getRiskHeatmap() {
