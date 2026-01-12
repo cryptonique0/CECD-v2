@@ -31,7 +31,7 @@ const MobileResponderPanel: React.FC<MobileResponderPanelProps> = ({
   };
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 md:hidden z-40 bg-gradient-to-t from-slate-900 to-slate-900/90 border-t border-white/5 backdrop-blur-xl">
+    <div className="fixed bottom-0 left-0 right-0 md:hidden z-40 bg-gradient-to-t from-slate-900 to-slate-900/90 border-t border-white/5 backdrop-blur-xl" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
       <div className="max-w-full">
         {/* Minimized View */}
         <button

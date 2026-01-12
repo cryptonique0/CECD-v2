@@ -2,7 +2,11 @@
 <html lang="en" class="dark">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no, maximum-scale=5" />
+  <meta name="theme-color" content="#020617" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="CECD" />
   <title>CECD - Emergency Dashboard</title>
   <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -27,6 +31,15 @@
           },
           fontFamily: {
             sans: ['Inter', 'sans-serif'],
+          },
+          padding: {
+            'safe': 'max(1rem, env(safe-area-inset-bottom))',
+            'safe-l': 'max(1rem, env(safe-area-inset-left))',
+            'safe-r': 'max(1rem, env(safe-area-inset-right))',
+            'safe-t': 'max(1rem, env(safe-area-inset-top))',
+          },
+          margin: {
+            'safe-b': 'env(safe-area-inset-bottom)',
           }
         }
       }
