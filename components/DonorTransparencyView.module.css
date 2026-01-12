@@ -1,0 +1,647 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  padding: 2rem;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  min-height: 100vh;
+}
+
+.header {
+  position: relative;
+  text-align: center;
+  margin-bottom: 1rem;
+}
+
+.header h1 {
+  font-size: 2.5rem;
+  color: #1a237e;
+  margin: 0;
+  font-weight: 700;
+}
+
+.header p {
+  font-size: 1rem;
+  color: #546e7a;
+  margin: 0.5rem 0 0 0;
+}
+
+.closeBtn {
+  position: absolute;
+  top: 0;
+  right: 0;
+  background: rgba(255, 255, 255, 0.8);
+  border: 2px solid #e0e0e0;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  font-size: 1.5rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+}
+
+.closeBtn:hover {
+  background: #fff;
+  border-color: #1a237e;
+  color: #1a237e;
+}
+
+.summaryCards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.card {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  background: white;
+  padding: 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+.cardIcon {
+  font-size: 2.5rem;
+  min-width: 60px;
+  text-align: center;
+}
+
+.cardContent {
+  flex: 1;
+}
+
+.cardLabel {
+  font-size: 0.85rem;
+  color: #999;
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.cardValue {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: #1a237e;
+}
+
+.filterSection {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  background: white;
+  padding: 1rem 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.filterSection label {
+  font-weight: 600;
+  color: #333;
+}
+
+.filterSection select {
+  flex: 1;
+  padding: 0.75rem;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: border-color 0.3s ease;
+}
+
+.filterSection select:focus {
+  outline: none;
+  border-color: #1a237e;
+}
+
+.donationsList {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1.5rem;
+}
+
+.donationCard {
+  background: white;
+  border-radius: 12px;
+  padding: 1.5rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: 3px solid transparent;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.donationCard:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+.donationCard.selected {
+  border-color: #1a237e;
+  background: linear-gradient(135deg, #f5f7fa 0%, #ffffff 100%);
+  box-shadow: 0 4px 20px rgba(26, 35, 126, 0.2);
+}
+
+.donationHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+}
+
+.donationInfo h3 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.2rem;
+  color: #1a237e;
+}
+
+.donationDate {
+  font-size: 0.85rem;
+  color: #999;
+  margin: 0;
+}
+
+.donationAmount {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.25rem;
+}
+
+.amount {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #4CAF50;
+}
+
+.currency {
+  font-size: 0.85rem;
+  color: #999;
+}
+
+.statusTimeline {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.statusStep {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  transition: opacity 0.3s ease;
+}
+
+.statusDot {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 1rem;
+  font-weight: bold;
+}
+
+.statusLabel {
+  font-size: 0.75rem;
+  color: #666;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.empty {
+  text-align: center;
+  padding: 2rem;
+  color: #999;
+}
+
+.emptyState {
+  text-align: center;
+  padding: 4rem 2rem;
+  background: white;
+  border-radius: 12px;
+  margin: 2rem 0;
+}
+
+.emptyIcon {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+}
+
+.emptyState h2 {
+  color: #1a237e;
+  margin: 1rem 0;
+}
+
+.emptyState p {
+  color: #999;
+  font-size: 1.05rem;
+}
+
+.detailsSection {
+  background: white;
+  border-radius: 12px;
+  padding: 2rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.detailsSection h2 {
+  margin-top: 0;
+  color: #1a237e;
+  border-bottom: 3px solid #1a237e;
+  padding-bottom: 1rem;
+}
+
+.impactNarrative {
+  background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%);
+  padding: 1.5rem;
+  border-radius: 8px;
+  margin-bottom: 2rem;
+  border-left: 4px solid #1a237e;
+}
+
+.impactNarrative h3 {
+  margin-top: 0;
+  color: #1a237e;
+}
+
+.impactNarrative p {
+  margin: 0;
+  color: #555;
+  line-height: 1.6;
+}
+
+.stepsList {
+  margin: 2rem 0;
+}
+
+.stepsList h3 {
+  color: #1a237e;
+  margin-bottom: 1.5rem;
+}
+
+.stepCard {
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  overflow: hidden;
+  transition: border-color 0.3s ease;
+}
+
+.stepCard:hover {
+  border-color: #1a237e;
+}
+
+.stepHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.5rem;
+  background: #fafafa;
+  cursor: pointer;
+  transition: background 0.3s ease;
+  gap: 1rem;
+}
+
+.stepHeader:hover {
+  background: #f0f0f0;
+}
+
+.stepTitle {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex: 1;
+}
+
+.stepStatus {
+  padding: 0.35rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  color: white;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  min-width: 80px;
+  text-align: center;
+}
+
+.stepTitle h4 {
+  margin: 0;
+  color: #1a237e;
+  font-size: 1.1rem;
+}
+
+.stepCategory {
+  background: #e8eaf6;
+  color: #3f51b5;
+  padding: 0.25rem 0.75rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.stepAmount {
+  display: flex;
+  gap: 1.5rem;
+  align-items: center;
+  min-width: 250px;
+}
+
+.amountBreakdown {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.5rem;
+}
+
+.allocLabel,
+.spentLabel {
+  font-size: 0.8rem;
+  color: #999;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.allocValue,
+.spentValue {
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.allocValue {
+  color: #2196F3;
+}
+
+.spentValue {
+  color: #4CAF50;
+}
+
+.expandBtn {
+  background: none;
+  border: none;
+  font-size: 1rem;
+  cursor: pointer;
+  color: #1a237e;
+  padding: 0.5rem;
+  transition: transform 0.3s ease;
+}
+
+.stepDetails {
+  padding: 1.5rem;
+  background: #fafafa;
+  border-top: 1px solid #e0e0e0;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.stepDescription {
+  color: #555;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.progressContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.progressLabel {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.progressBar {
+  height: 8px;
+  background: #e0e0e0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  background: linear-gradient(90deg, #4CAF50 0%, #8BC34A 100%);
+  transition: width 0.3s ease;
+}
+
+.receiptsSection {
+  background: white;
+  padding: 1rem;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+}
+
+.receiptsSection h5 {
+  margin: 0 0 1rem 0;
+  color: #1a237e;
+  font-size: 0.95rem;
+}
+
+.receiptsList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.receiptItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem;
+  background: #f9f9f9;
+  border-radius: 6px;
+  border-left: 3px solid #2196F3;
+}
+
+.receiptInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.vendor {
+  font-weight: 600;
+  color: #1a237e;
+  font-size: 0.95rem;
+}
+
+.receiptDate {
+  font-size: 0.8rem;
+  color: #999;
+}
+
+.receiptAmount {
+  font-weight: 700;
+  color: #4CAF50;
+  font-size: 1rem;
+}
+
+.receiptProof {
+  background: #2196F3;
+  color: white;
+  padding: 0.4rem 0.8rem;
+  border-radius: 4px;
+  text-decoration: none;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+.receiptProof:hover {
+  background: #1976D2;
+}
+
+.verificationBadge {
+  background: linear-gradient(135deg, #c8e6c9 0%, #a5d6a7 100%);
+  padding: 1.5rem;
+  border-radius: 8px;
+  text-align: center;
+  margin-top: 2rem;
+}
+
+.verificationBadge h3 {
+  margin: 0 0 1rem 0;
+  color: #1b5e20;
+  font-size: 1.1rem;
+}
+
+.badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  background: white;
+  padding: 1rem 1.5rem;
+  border-radius: 6px;
+}
+
+.badgeIcon {
+  font-size: 2rem;
+}
+
+.badgeText {
+  color: #1b5e20;
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+  .summaryCards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .donationsList {
+    grid-template-columns: 1fr;
+  }
+
+  .stepAmount {
+    min-width: 200px;
+  }
+}
+
+@media (max-width: 768px) {
+  .container {
+    padding: 1rem;
+  }
+
+  .header h1 {
+    font-size: 1.8rem;
+  }
+
+  .summaryCards {
+    grid-template-columns: 1fr;
+  }
+
+  .card {
+    gap: 0.75rem;
+    padding: 1rem;
+  }
+
+  .cardIcon {
+    font-size: 2rem;
+    min-width: 50px;
+  }
+
+  .cardValue {
+    font-size: 1.3rem;
+  }
+
+  .filterSection {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .stepHeader {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .stepTitle {
+    width: 100%;
+  }
+
+  .stepAmount {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .donationsList {
+    grid-template-columns: 1fr;
+  }
+
+  .detailsSection {
+    padding: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .container {
+    padding: 0.75rem;
+    gap: 1rem;
+  }
+
+  .header h1 {
+    font-size: 1.5rem;
+  }
+
+  .summaryCards {
+    gap: 1rem;
+  }
+
+  .card {
+    padding: 0.75rem;
+  }
+
+  .cardValue {
+    font-size: 1.1rem;
+  }
+
+  .closeBtn {
+    width: 32px;
+    height: 32px;
+    font-size: 1.2rem;
+  }
+}

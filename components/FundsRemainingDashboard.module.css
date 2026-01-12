@@ -1,0 +1,709 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  padding: 2rem;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  min-height: 100vh;
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 1rem;
+}
+
+.header h1 {
+  font-size: 2.5rem;
+  color: #1a237e;
+  margin: 0;
+  font-weight: 700;
+}
+
+.header p {
+  font-size: 1rem;
+  color: #546e7a;
+  margin: 0.5rem 0 0 0;
+}
+
+.mainStatus {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2rem;
+  align-items: flex-start;
+}
+
+.mainCard {
+  background: white;
+  border-radius: 12px;
+  padding: 2rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2rem;
+  align-items: center;
+}
+
+.budgetCircle {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  position: relative;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+}
+
+.circleLabel {
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  opacity: 0.9;
+}
+
+.circleValue {
+  font-size: 1.8rem;
+  font-weight: 700;
+  margin: 0.5rem 0;
+}
+
+.circlePercent {
+  font-size: 1.3rem;
+  font-weight: 600;
+  opacity: 0.95;
+}
+
+.budgetDetails {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.detailRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.label {
+  font-size: 0.9rem;
+  color: #999;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.value {
+  font-size: 1.1rem;
+  color: #1a237e;
+  font-weight: 600;
+}
+
+.progressSection {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.progressLabel {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.progressBar {
+  height: 10px;
+  background: #e0e0e0;
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  transition: width 0.3s ease, background-color 0.3s ease;
+  border-radius: 5px;
+}
+
+.riskIndicators {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+}
+
+.riskCard {
+  background: white;
+  border-radius: 12px;
+  padding: 1.25rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  transition: transform 0.3s ease;
+}
+
+.riskCard:hover {
+  transform: translateY(-2px);
+}
+
+.riskIcon {
+  font-size: 2rem;
+}
+
+.riskContent {
+  flex: 1;
+}
+
+.riskLabel {
+  font-size: 0.8rem;
+  color: #999;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  margin-bottom: 0.25rem;
+}
+
+.riskValue {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #1a237e;
+}
+
+.controlsSection {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  background: white;
+  padding: 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.sortControl {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex: 1;
+}
+
+.sortControl label {
+  font-weight: 600;
+  color: #333;
+  white-space: nowrap;
+}
+
+.sortControl select {
+  padding: 0.6rem 0.75rem;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  flex: 1;
+  transition: border-color 0.3s ease;
+}
+
+.sortControl select:focus {
+  outline: none;
+  border-color: #1a237e;
+}
+
+.editBtn,
+.printBtn {
+  padding: 0.7rem 1.25rem;
+  border: 2px solid #1a237e;
+  background: white;
+  color: #1a237e;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.9rem;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+
+.editBtn:hover {
+  background: #1a237e;
+  color: white;
+}
+
+.printBtn {
+  border-color: #999;
+  color: #999;
+}
+
+.printBtn:hover {
+  background: #999;
+  color: white;
+  border-color: #999;
+}
+
+.allocationsList {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.emptyState {
+  text-align: center;
+  padding: 2rem;
+  background: white;
+  border-radius: 12px;
+  color: #999;
+}
+
+.allocationCard {
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border-left: 5px solid #999;
+  transition: all 0.3s ease;
+}
+
+.allocationCard:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  transform: translateY(-2px);
+}
+
+.allocationCard.risk-critical {
+  border-left-color: #F44336;
+  background: linear-gradient(135deg, #ffebee 0%, #ffffff 100%);
+}
+
+.allocationCard.risk-high {
+  border-left-color: #FF9800;
+  background: linear-gradient(135deg, #fff3e0 0%, #ffffff 100%);
+}
+
+.allocationCard.risk-medium {
+  border-left-color: #FFC107;
+  background: linear-gradient(135deg, #fffde7 0%, #ffffff 100%);
+}
+
+.allocationCard.risk-low {
+  border-left-color: #4CAF50;
+}
+
+.allocationHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.5rem;
+  cursor: pointer;
+  transition: background 0.3s ease;
+  gap: 1rem;
+}
+
+.allocationHeader:hover {
+  background: #f9f9f9;
+}
+
+.allocationLeft {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  flex: 1;
+}
+
+.categoryBadge {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: bold;
+  font-size: 1.5rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.allocationInfo h4 {
+  margin: 0 0 0.25rem 0;
+  color: #1a237e;
+  font-size: 1.1rem;
+}
+
+.category {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #999;
+}
+
+.allocationAmounts {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  min-width: 400px;
+}
+
+.amountColumn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.amountLabel {
+  font-size: 0.75rem;
+  color: #999;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.amount {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #1a237e;
+}
+
+.riskIndicator {
+  width: 60px;
+  height: 60px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: white;
+}
+
+.expandBtn {
+  background: none;
+  border: none;
+  font-size: 1rem;
+  cursor: pointer;
+  color: #999;
+  padding: 0.5rem;
+  transition: color 0.3s ease;
+  min-width: 30px;
+}
+
+.expandBtn:hover {
+  color: #1a237e;
+}
+
+.allocationProgress {
+  padding: 0 1.5rem 1rem 1.5rem;
+}
+
+.allocationDetails {
+  padding: 1.5rem;
+  background: #fafafa;
+  border-top: 1px solid #e0e0e0;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.detailsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1rem;
+}
+
+.detailCard {
+  background: white;
+  padding: 1rem;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+}
+
+.detailLabel {
+  font-size: 0.8rem;
+  color: #999;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  margin-bottom: 0.5rem;
+  display: block;
+}
+
+.detailValue {
+  font-size: 1rem;
+  color: #1a237e;
+  font-weight: 700;
+}
+
+.percentText {
+  display: block;
+  font-size: 0.85rem;
+  color: #999;
+  font-weight: 400;
+  margin-top: 0.25rem;
+}
+
+.editSection {
+  background: white;
+  padding: 1rem;
+  border-radius: 8px;
+  border: 2px solid #e0e0e0;
+}
+
+.editSection label {
+  display: block;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 0.75rem;
+  font-size: 0.9rem;
+}
+
+.editInput {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: white;
+  border: 2px solid #e0e0e0;
+  border-radius: 6px;
+  padding: 0.5rem;
+  transition: border-color 0.3s ease;
+}
+
+.editInput:focus-within {
+  border-color: #1a237e;
+}
+
+.editInput span {
+  color: #999;
+  font-weight: 600;
+}
+
+.editInput input {
+  flex: 1;
+  border: none;
+  padding: 0.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1a237e;
+}
+
+.editInput input:focus {
+  outline: none;
+}
+
+.updateBtn {
+  padding: 0.5rem 1rem;
+  background: #1a237e;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.85rem;
+  transition: background 0.3s ease;
+}
+
+.updateBtn:hover {
+  background: #0d47a1;
+}
+
+.forecastSection {
+  background: white;
+  padding: 1rem;
+  border-radius: 8px;
+  border-left: 4px solid #2196F3;
+}
+
+.forecastSection h5 {
+  margin: 0 0 0.5rem 0;
+  color: #1a237e;
+  font-size: 0.9rem;
+}
+
+.forecastText {
+  margin: 0;
+  color: #666;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.alertsSection {
+  background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
+  padding: 1.5rem;
+  border-radius: 12px;
+  border-left: 5px solid #FF9800;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.alertsSection h3 {
+  margin: 0 0 1rem 0;
+  color: #E65100;
+  font-size: 1.1rem;
+}
+
+.alert {
+  padding: 0.75rem;
+  background: white;
+  border-radius: 6px;
+  border-left: 3px solid;
+  margin-bottom: 0.75rem;
+  font-size: 0.95rem;
+  color: #333;
+}
+
+.alert:last-child {
+  margin-bottom: 0;
+}
+
+.recommendationsSection {
+  background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+  padding: 1.5rem;
+  border-radius: 12px;
+  border-left: 5px solid #4CAF50;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.recommendationsSection h3 {
+  margin: 0 0 1rem 0;
+  color: #1b5e20;
+  font-size: 1.1rem;
+}
+
+.recommendationsSection ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.recommendationsSection li {
+  padding: 0.5rem 0;
+  color: #1b5e20;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.recommendationsSection li::before {
+  content: '→ ';
+  margin-right: 0.5rem;
+  font-weight: bold;
+}
+
+/* Responsive Design */
+@media (max-width: 1200px) {
+  .mainStatus {
+    grid-template-columns: 1fr;
+  }
+
+  .riskIndicators {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .allocationAmounts {
+    min-width: 300px;
+    gap: 1rem;
+  }
+}
+
+@media (max-width: 1024px) {
+  .mainCard {
+    grid-template-columns: 1fr;
+  }
+
+  .allocationAmounts {
+    flex-wrap: wrap;
+  }
+
+  .controlsSection {
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 768px) {
+  .container {
+    padding: 1rem;
+  }
+
+  .header h1 {
+    font-size: 1.8rem;
+  }
+
+  .riskIndicators {
+    grid-template-columns: 1fr;
+  }
+
+  .budgetCircle {
+    width: 120px;
+    height: 120px;
+  }
+
+  .circleValue {
+    font-size: 1.4rem;
+  }
+
+  .allocationHeader {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 1rem;
+  }
+
+  .allocationAmounts {
+    width: 100%;
+    min-width: auto;
+    flex-wrap: wrap;
+  }
+
+  .controlsSection {
+    flex-direction: column;
+  }
+
+  .sortControl {
+    width: 100%;
+  }
+
+  .sortControl select {
+    min-width: auto;
+  }
+
+  .detailsGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .container {
+    padding: 0.75rem;
+    gap: 1rem;
+  }
+
+  .header h1 {
+    font-size: 1.5rem;
+  }
+
+  .mainCard {
+    padding: 1rem;
+    gap: 1rem;
+  }
+
+  .budgetCircle {
+    width: 100px;
+    height: 100px;
+  }
+
+  .circleValue {
+    font-size: 1.2rem;
+  }
+
+  .categoryBadge {
+    width: 40px;
+    height: 40px;
+  }
+
+  .detailsGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .allocationAmounts {
+    gap: 1rem;
+  }
+
+  .amountColumn {
+    flex: 1;
+    text-align: center;
+  }
+}
