@@ -249,3 +249,84 @@ export interface UserProgress {
   averageScore: number;
   lastTrainingDate: number;
 }
+
+// === FINANCIAL CONTROLS & TRANSPARENCY TYPES ===
+
+export interface BudgetAllocation {
+  id: string;
+  incidentId: string;
+  incidentTitle: string;
+  budgetCap: number;
+  currency: 'USD' | 'ETH' | 'USDC';
+  allocated: number;
+  remaining: number;
+  estimatedNeeds: number;
+  surplus: number;
+  allocations: Array<{
+    stepId: string;
+    stepTitle: string;
+    allocated: number;
+    spent: number;
+    estimate: number;
+    status: 'pending' | 'in_progress' | 'complete';
+  }>;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface FraudAlert {
+  id: string;
+  incidentId: string;
+  donationId?: string;
+  receiptId?: string;
+  riskScore: number;
+  riskLevel: 'low' | 'medium' | 'high' | 'critical';
+  type: 'duplicate_donation' | 'unusually_large' | 'rapid_sequence' | 'missing_receipt' | 'receipt_discrepancy' | 'mismatched_vendor' | 'suspicious_location';
+  description: string;
+  evidence: string[];
+  flaggedAt: number;
+  resolved: boolean;
+  resolvedAt?: number;
+  notes?: string;
+}
+
+export interface DonorReceipt {
+  id: string;
+  donationId: string;
+  donorId: string;
+  donorName: string;
+  amount: number;
+  currency: string;
+  incidentId: string;
+  incidentTitle: string;
+  stepId: string;
+  stepTitle: string;
+  allocatedAt: number;
+  stepCompletedAt?: number;
+  impact: string;
+  transactionHash?: string;
+  taxDeductible: boolean;
+}
+
+export interface FundAllocation {
+  id: string;
+  donationId: string;
+  incidentId: string;
+  stepId: string;
+  amount: number;
+  allocatedAt: number;
+  donorName?: string;
+}
+
+export interface BudgetException {
+  id: string;
+  incidentId: string;
+  stepId: string;
+  reason: 'budget_exceeded' | 'over_estimate' | 'emergency_need';
+  amountOver: number;
+  severity: 'low' | 'medium' | 'high';
+  resolved: boolean;
+  createdAt: number;
+  resolvedAt?: number;
+  notes?: string;
+}
