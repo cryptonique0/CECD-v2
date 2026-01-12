@@ -98,53 +98,59 @@ const Incidents: React.FC<IncidentsProps> = ({ incidents }) => {
   return (
     <div className="p-4 md:p-6 lg:p-8 flex flex-col gap-6">
       {/* Header */}
-      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-3 mb-2">
-            <h1 className="text-2xl md:text-3xl font-black text-white tracking-tight">Incident Registry</h1>
-            <span className="px-2 py-1 rounded-lg bg-primary/10 border border-primary/20 text-primary text-[10px] font-bold">
-              {filteredIncidents.length} results
-            </span>
+      <div className="flex flex-col gap-4 md:gap-0">
+        <div className="flex flex-col md:flex-row md:items-end md:justify-between md:gap-4">
+          <div>
+            <div className="flex items-center gap-3 mb-2">
+              <h1 className="text-2xl md:text-3xl font-black text-white tracking-tight">Incident Registry</h1>
+              <span className="px-2 py-1 rounded-lg bg-primary/10 border border-primary/20 text-primary text-[10px] font-bold">
+                {filteredIncidents.length} results
+              </span>
+            </div>
+            <p className="text-white/50 text-sm">Real-time ledger of verified emergencies on Base network</p>
           </div>
-          <p className="text-white/50 text-sm">Real-time ledger of verified emergencies on Base network</p>
+          <button 
+            onClick={() => navigate('/report')} 
+            className="w-full md:w-auto flex items-center justify-center gap-2 px-4 py-3 md:py-2 bg-gradient-to-r from-red-600 to-red-500 text-white rounded-xl font-semibold text-sm shadow-lg shadow-red-500/20 hover:shadow-red-500/30 transition-all active:scale-95 md:mt-0 mt-2"
+          >
+            <span className="material-symbols-outlined text-lg">add</span>
+            <span>Report Emergency</span>
+          </button>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+
+        {/* Controls - Responsive Grid */}
+        <div className="flex flex-col sm:flex-row gap-2 md:gap-3 items-stretch md:items-center md:justify-end flex-wrap">
           {/* View Toggle */}
-          <div className="flex bg-white/5 border border-white/10 rounded-xl p-1">
+          <div className="flex bg-white/5 border border-white/10 rounded-xl p-1 flex-shrink-0">
             <button 
               onClick={() => setViewMode('grid')}
-              className={`p-2 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-primary text-white' : 'text-white/50 hover:text-white'}`}
+              className={`p-2 rounded-lg transition-all text-sm md:text-base ${viewMode === 'grid' ? 'bg-primary text-white' : 'text-white/50 hover:text-white active:bg-white/10'}`}
+              title="Grid view"
             >
               <span className="material-symbols-outlined text-lg">grid_view</span>
             </button>
             <button 
               onClick={() => setViewMode('list')}
-              className={`p-2 rounded-lg transition-all ${viewMode === 'list' ? 'bg-primary text-white' : 'text-white/50 hover:text-white'}`}
+              className={`p-2 rounded-lg transition-all text-sm md:text-base ${viewMode === 'list' ? 'bg-primary text-white' : 'text-white/50 hover:text-white active:bg-white/10'}`}
+              title="List view"
             >
               <span className="material-symbols-outlined text-lg">view_list</span>
             </button>
           </div>
           
           {/* Sort Buttons */}
-          <div className="flex bg-white/5 border border-white/10 rounded-xl p-1">
+          <div className="flex bg-white/5 border border-white/10 rounded-xl p-1 flex-wrap overflow-hidden flex-shrink-0">
             {(['newest', 'severity', 'oldest'] as const).map((sort) => (
               <button 
                 key={sort}
                 onClick={() => setSortBy(sort)}
-                className={`px-3 py-2 rounded-lg text-[10px] font-bold uppercase transition-all ${sortBy === sort ? 'bg-primary text-white' : 'text-white/50 hover:text-white'}`}
+                className={`px-2 sm:px-3 py-2 rounded-lg text-[9px] sm:text-[10px] font-bold uppercase transition-all ${sortBy === sort ? 'bg-primary text-white' : 'text-white/50 hover:text-white active:bg-white/10'}`}
+                title={`Sort by ${sort}`}
               >
-                {sort}
+                {sort === 'newest' ? 'New' : sort === 'oldest' ? 'Old' : 'Severity'}
               </button>
             ))}
           </div>
-          
-          <button 
-            onClick={() => navigate('/report')} 
-            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-red-600 to-red-500 text-white rounded-xl font-semibold text-sm shadow-lg shadow-red-500/20 hover:shadow-red-500/30 transition-all active:scale-95"
-          >
-            <span className="material-symbols-outlined text-lg">add</span>
-            Report
-          </button>
         </div>
       </div>
 
@@ -280,39 +286,39 @@ const Incidents: React.FC<IncidentsProps> = ({ incidents }) => {
               <p className="text-sm text-white/50 max-w-sm">Try adjusting your filters or search query to find what you're looking for.</p>
             </div>
           ) : viewMode === 'grid' ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
               {filteredIncidents.map(incident => (
                 <div 
                   key={incident.id} 
                   onClick={() => navigate(`/incidents/${incident.id}`)}
-                  className="group bg-gradient-to-br from-slate-900 to-slate-950 border border-white/5 rounded-2xl overflow-hidden hover:border-primary/30 transition-all cursor-pointer"
+                  className="group bg-gradient-to-br from-slate-900 to-slate-950 border border-white/5 rounded-2xl overflow-hidden hover:border-primary/30 active:border-primary/50 transition-all cursor-pointer active:scale-95 touch-manipulation"
                 >
                   {/* Severity Bar */}
                   <div className={`h-1 bg-gradient-to-r ${getSeverityGradient(incident.severity)}`}></div>
                   
-                  <div className="p-5">
+                  <div className="p-4 sm:p-5">
                     {/* Header */}
                     <div className="flex items-start justify-between gap-3 mb-4">
-                      <div className="flex items-start gap-3">
-                        <div className="p-2.5 rounded-xl bg-white/5 group-hover:bg-primary/20 transition-colors">
+                      <div className="flex items-start gap-3 min-w-0">
+                        <div className="p-2.5 rounded-xl bg-white/5 group-hover:bg-primary/20 active:bg-primary/30 transition-colors flex-shrink-0">
                           <span className="material-symbols-outlined text-primary text-xl">{CATEGORY_ICONS[incident.category]}</span>
                         </div>
-                        <div>
+                        <div className="min-w-0">
                           <span className="text-[10px] font-mono text-primary/70 font-semibold">{incident.id}</span>
-                          <h3 className="text-base font-bold text-white group-hover:text-primary transition-colors line-clamp-1">{incident.title}</h3>
+                          <h3 className="text-base font-bold text-white group-hover:text-primary active:text-primary transition-colors line-clamp-2">{incident.title}</h3>
                         </div>
                       </div>
-                      <div className="flex flex-col items-end gap-1">
-                        <span className={`px-2 py-0.5 rounded-lg text-[9px] font-bold uppercase ${SEVERITY_COLORS[incident.severity]}`}>
+                      <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                        <span className={`px-2 py-0.5 rounded-lg text-[9px] font-bold uppercase whitespace-nowrap ${SEVERITY_COLORS[incident.severity]}`}>
                           {incident.severity}
                         </span>
-                        <span className={`px-2 py-0.5 rounded-lg text-[9px] font-semibold ${STATUS_COLORS[incident.status]}`}>
+                        <span className={`px-2 py-0.5 rounded-lg text-[9px] font-semibold whitespace-nowrap ${STATUS_COLORS[incident.status]}`}>
                           {incident.status}
                         </span>
                         {incident.pendingSync && (
-                          <span className="mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[9px] font-bold uppercase bg-amber-500/10 text-amber-300 border border-amber-500/30">
+                          <span className="mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[9px] font-bold uppercase bg-amber-500/10 text-amber-300 border border-amber-500/30 whitespace-nowrap">
                             <span className="material-symbols-outlined text-[12px]">cloud_off</span>
-                            Pending Sync
+                            Sync
                           </span>
                         )}
                       </div>
@@ -322,23 +328,23 @@ const Incidents: React.FC<IncidentsProps> = ({ incidents }) => {
                     <p className="text-sm text-white/50 line-clamp-2 mb-4">{incident.description}</p>
 
                     {/* Footer */}
-                    <div className="flex items-center justify-between pt-4 border-t border-white/5">
-                      <div className="flex items-center gap-4 text-[10px] text-white/40">
-                        <span className="flex items-center gap-1">
-                          <span className="material-symbols-outlined text-sm">location_on</span>
-                          {incident.locationName.split(',')[0]}
+                    <div className="flex items-center justify-between pt-4 border-t border-white/5 gap-2">
+                      <div className="flex items-center gap-2 sm:gap-4 text-[9px] sm:text-[10px] text-white/40 min-w-0">
+                        <span className="flex items-center gap-1 truncate">
+                          <span className="material-symbols-outlined text-sm flex-shrink-0">location_on</span>
+                          <span className="truncate">{incident.locationName.split(',')[0]}</span>
                         </span>
-                        <span className="flex items-center gap-1">
+                        <span className="flex items-center gap-1 whitespace-nowrap flex-shrink-0">
                           <span className="material-symbols-outlined text-sm">schedule</span>
                           {getTimeAgo(incident.timestamp)}
                         </span>
                       </div>
                       <button 
                         onClick={(e) => { e.stopPropagation(); navigate(`/incidents/${incident.id}`); }}
-                        className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 transition-all text-[10px] font-semibold"
+                        className="flex items-center justify-center gap-1 px-3 py-2 sm:py-1.5 rounded-lg bg-emerald-500/10 active:bg-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 transition-all text-[10px] font-semibold whitespace-nowrap flex-shrink-0 active:scale-95"
                       >
                         <span className="material-symbols-outlined text-xs">volunteer_activism</span>
-                        Donate
+                        <span className="hidden sm:inline">Donate</span>
                       </button>
                     </div>
                   </div>
