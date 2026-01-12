@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Incident, Severity, IncidentStatus, IncidentCategory, User, Role } from '../types';
 import { SEVERITY_COLORS, STATUS_COLORS, CATEGORY_ICONS } from '../constants';
 import { useNavigate } from 'react-router-dom';
-import { analyticsService } from '../services/analyticsService';
+import { analyticsService, ResponseTimeMetric, SuccessRateByCategory, ResponderPerformance } from '../services/analyticsService';
 import { resourceLogisticsService, Asset } from '../services/resourceLogisticsService';
 import { buildPredictiveDispatches, DispatchSuggestion } from '../services/routingService';
 import { hazardLayersService, LeafletLayer } from '../services/hazardLayersService';
@@ -43,6 +43,9 @@ const Dashboard: React.FC<DashboardProps> = ({ incidents, volunteers = [], curre
   const [resupplyRoutes, setResupplyRoutes] = useState<Array<{ assetId: string; from: string; toIncidentId: string; distanceKm: number; note: string }>>([]);
   const [readiness, setReadiness] = useState<Array<{ region: string; avgResponseMins: number; closureRate: number; skillGaps: string[]; readinessScore: number }>>([]);
   const [anomalies, setAnomalies] = useState<Array<{ incidentId: string; region: string; suspicionScore: number; reason: string }>>([]);
+  const [responseTimeMetrics, setResponseTimeMetrics] = useState<ResponseTimeMetric[]>([]);
+  const [successRates, setSuccessRates] = useState<SuccessRateByCategory[]>([]);
+  const [responderPerformance, setResponderPerformance] = useState<ResponderPerformance[]>([]);
   const [drillRegion, setDrillRegion] = useState<string>('New York, USA');
   const [drillScenario, setDrillScenario] = useState<IncidentCategory>(IncidentCategory.FIRE);
   const [drillCount, setDrillCount] = useState<number>(3);
@@ -406,6 +409,20 @@ const Dashboard: React.FC<DashboardProps> = ({ incidents, volunteers = [], curre
     } catch {}
   }, [incidents, volunteers]);
 
+  // Response Time Metrics, Success Rates, and Responder Performance
+  useEffect(() => {
+    try {
+      const metrics = analyticsService.getResponseTimeMetrics(incidents);
+      setResponseTimeMetrics(metrics);
+      
+      const rates = analyticsService.getSuccessRateByCategory(incidents);
+      setSuccessRates(rates);
+      
+      const performance = analyticsService.getResponderPerformanceHeatmap(incidents, volunteers);
+      setResponderPerformance(performance);
+    } catch {}
+  }, [incidents, volunteers]);
+
   // 6. Situational Layers Toggle Logic
   const toggleLayer = async (key: keyof typeof visibleLayers) => {
     if (!mapRef.current) return;
@@ -644,6 +661,187 @@ const Dashboard: React.FC<DashboardProps> = ({ incidents, volunteers = [], curre
               </div>
             ))}
           </div>
+        </section>
+      )}
+
+      {/* Response Time Metrics */}
+      {responseTimeMetrics.length > 0 && (
+        <section className="bg-card-dark rounded-2xl border border-border-dark p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <span className="material-symbols-outlined text-cyan-400">schedule</span>
+            <h3 className="text-lg font-bold text-white uppercase tracking-tight">Response Time Metrics (7-Day)</h3>
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="flex flex-col gap-3">
+              <h4 className="text-sm font-bold text-white/80">Average Response Time Trend</h4>
+              <div className="h-32 flex items-end gap-1 px-2 py-3 bg-background-dark rounded-xl border border-border-dark">
+                {responseTimeMetrics.slice(-7).map((m, i) => {
+                  const maxTime = Math.max(...responseTimeMetrics.map(x => x.avgResponseTimeMins), 20);
+                  const height = (m.avgResponseTimeMins / maxTime) * 100;
+                  return (
+                    <div key={i} className="flex-1 flex flex-col items-center gap-1">
+                      <div 
+                        className="w-full bg-gradient-to-t from-cyan-500 to-cyan-400 rounded-t opacity-80 hover:opacity-100 transition-all"
+                        style={{ height: `${Math.max(5, height)}%` }}
+                        title={`Day ${m.day}: ${m.avgResponseTimeMins.toFixed(1)}m`}
+                      ></div>
+                      <span className="text-[8px] text-text-secondary font-bold">D{m.day}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+            <div className="flex flex-col gap-3">
+              <h4 className="text-sm font-bold text-white/80">Response Time Statistics</h4>
+              <div className="space-y-2">
+                {responseTimeMetrics.slice(-1).map((latest, i) => (
+                  <div key={i} className="space-y-2">
+                    <div className="p-3 rounded-lg bg-background-dark border border-border-dark">
+                      <p className="text-[10px] text-text-secondary uppercase font-bold">Average Response</p>
+                      <p className="text-2xl font-black text-cyan-400">{latest.avgResponseTimeMins.toFixed(1)}m</p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="p-3 rounded-lg bg-background-dark border border-border-dark">
+                        <p className="text-[9px] text-text-secondary uppercase font-bold">Median</p>
+                        <p className="text-xl font-black text-white">{latest.medianResponseTimeMins.toFixed(1)}m</p>
+                      </div>
+                      <div className="p-3 rounded-lg bg-background-dark border border-border-dark">
+                        <p className="text-[9px] text-text-secondary uppercase font-bold">P95</p>
+                        <p className="text-xl font-black text-white">{latest.p95ResponseTimeMins.toFixed(1)}m</p>
+                      </div>
+                    </div>
+                    <div className="p-3 rounded-lg bg-background-dark border border-border-dark">
+                      <p className="text-[9px] text-text-secondary uppercase font-bold">Incidents Responded</p>
+                      <p className="text-xl font-black text-white">{latest.incidentsResponded}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Success Rates by Category */}
+      {successRates.length > 0 && (
+        <section className="bg-card-dark rounded-2xl border border-border-dark p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <span className="material-symbols-outlined text-emerald-400">trending_up</span>
+            <h3 className="text-lg font-bold text-white uppercase tracking-tight">Success Rates by Incident Type</h3>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {successRates.map((rate) => (
+              <div key={rate.category} className="p-4 rounded-xl bg-background-dark border border-border-dark">
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-sm font-bold text-white">{rate.category}</p>
+                  <span className={`px-2 py-0.5 rounded-lg text-[10px] font-black uppercase border ${
+                    rate.successRate > 0.85 ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30' : 
+                    rate.successRate > 0.70 ? 'bg-amber-500/10 text-amber-300 border-amber-500/30' : 
+                    'bg-red-500/10 text-red-300 border-red-500/30'
+                  }`}>
+                    {Math.round(rate.successRate * 100)}%
+                  </span>
+                </div>
+                <div className="space-y-2 text-[10px]">
+                  <div>
+                    <p className="text-text-secondary">Resolved: <span className="text-white font-bold">{rate.resolved}/{rate.total}</span></p>
+                  </div>
+                  <div>
+                    <p className="text-text-secondary">Avg Resolution Time:</p>
+                    <p className="text-white font-bold">{rate.avgResolutionTimeMins.toFixed(0)} min</p>
+                  </div>
+                  <div className="pt-2 border-t border-border-dark">
+                    <div className="w-full h-1.5 bg-slate-700 rounded-full overflow-hidden">
+                      <div 
+                        className={`h-full rounded-full ${
+                          rate.successRate > 0.85 ? 'bg-emerald-500' : 
+                          rate.successRate > 0.70 ? 'bg-amber-500' : 
+                          'bg-red-500'
+                        }`}
+                        style={{ width: `${Math.round(rate.successRate * 100)}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Responder Performance Heatmap */}
+      {responderPerformance.length > 0 && (
+        <section className="bg-card-dark rounded-2xl border border-border-dark p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <span className="material-symbols-outlined text-amber-400">person_check</span>
+            <h3 className="text-lg font-bold text-white uppercase tracking-tight">Responder Performance Heatmap</h3>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-[10px]">
+              <thead>
+                <tr className="border-b border-border-dark">
+                  <th className="text-left py-2 px-3 text-text-secondary font-bold uppercase">Responder</th>
+                  <th className="text-center py-2 px-3 text-text-secondary font-bold uppercase">Incidents</th>
+                  <th className="text-center py-2 px-3 text-text-secondary font-bold uppercase">Avg Response</th>
+                  <th className="text-center py-2 px-3 text-text-secondary font-bold uppercase">Success Rate</th>
+                  <th className="text-center py-2 px-3 text-text-secondary font-bold uppercase">Trust Score</th>
+                  <th className="text-center py-2 px-3 text-text-secondary font-bold uppercase">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {responderPerformance.slice(0, 10).map((perf) => (
+                  <tr key={perf.id} className="border-b border-border-dark/50 hover:bg-background-dark/50 transition-colors">
+                    <td className="py-3 px-3 text-white font-bold">
+                      <div>
+                        <p>{perf.name}</p>
+                        <p className="text-[9px] text-text-secondary">{perf.skillPrimary}</p>
+                      </div>
+                    </td>
+                    <td className="text-center py-3 px-3 text-white font-bold">{perf.incidentsResponded}</td>
+                    <td className="text-center py-3 px-3">
+                      <span className={perf.avgResponseTimeMins < 7 ? 'text-emerald-400 font-bold' : 'text-white'}>
+                        {perf.avgResponseTimeMins.toFixed(1)}m
+                      </span>
+                    </td>
+                    <td className="text-center py-3 px-3">
+                      <span className={`font-bold ${
+                        perf.successRate > 0.85 ? 'text-emerald-400' : 
+                        perf.successRate > 0.70 ? 'text-amber-400' : 
+                        'text-red-400'
+                      }`}>
+                        {Math.round(perf.successRate * 100)}%
+                      </span>
+                    </td>
+                    <td className="text-center py-3 px-3">
+                      <div className="flex items-center justify-center gap-1">
+                        <div className="w-12 h-1.5 bg-slate-700 rounded-full overflow-hidden">
+                          <div 
+                            className="h-full bg-gradient-to-r from-red-500 to-emerald-500"
+                            style={{ width: `${perf.trustScore * 100}%` }}
+                          ></div>
+                        </div>
+                        <span className="text-white font-bold">{(perf.trustScore * 100).toFixed(0)}%</span>
+                      </div>
+                    </td>
+                    <td className="text-center py-3 px-3">
+                      <span className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase ${
+                        perf.status === 'Available' ? 'bg-emerald-500/20 text-emerald-300' :
+                        perf.status === 'Busy' ? 'bg-amber-500/20 text-amber-300' :
+                        'bg-slate-700 text-text-secondary'
+                      }`}>
+                        {perf.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {responderPerformance.length > 10 && (
+            <p className="text-center text-[9px] text-text-secondary mt-3 font-bold">
+              Showing top 10 of {responderPerformance.length} responders
+            </p>
+          )}
         </section>
       )}
 
