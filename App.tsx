@@ -3,6 +3,7 @@ import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import MobileResponderPanel from './components/MobileResponderPanel';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import Dashboard from './pages/Dashboard';
 import Incidents from './pages/Incidents';
 import IncidentDetail from './pages/IncidentDetail';
@@ -20,6 +21,7 @@ import { Incident, User, Role } from './types';
 import { initialUsers, initialIncidents } from './mockData';
 import { aiService } from './services/aiService';
 import { offlineService } from './services/offlineService';
+import { loggerService } from './services/loggerService';
 
 const App: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
