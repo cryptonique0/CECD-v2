@@ -5,6 +5,7 @@ import { CATEGORY_ICONS, SEVERITY_COLORS } from '../constants';
 import { aiService, PredictionResult } from '../services/aiService';
 import { zkService } from '../services/zkService';
 import { offlineService } from '../services/offlineService';
+import { validationService } from '../services/validationService';
 
 interface ReportIncidentProps {
   onSubmit: (incident: Incident) => void;
@@ -54,8 +55,10 @@ const ReportIncident: React.FC<ReportIncidentProps> = ({ onSubmit, currentUser, 
   };
 
   const handleAiAnalysis = async () => {
-    if (!formData.description.trim() || formData.description.length < 15) {
-      setAnalysisError("Operational requirement: Provide more detail (min 15 chars) for AI triangulation.");
+    // Validate input
+    const descValidation = validationService.validateDescription(formData.description);
+    if (!descValidation.isValid) {
+      setAnalysisError(descValidation.errors[0] || "Invalid description for analysis");
       return;
     }
     
@@ -89,6 +92,18 @@ const ReportIncident: React.FC<ReportIncidentProps> = ({ onSubmit, currentUser, 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate all required fields
+    const titleValidation = validationService.validateTitle(formData.title);
+    const descValidation = validationService.validateDescription(formData.description);
+    const coordsValidation = validationService.validateCoordinates(formData.lat, formData.lng);
+    
+    const allErrors = [...titleValidation.errors, ...descValidation.errors, ...coordsValidation.errors];
+    
+    if (allErrors.length > 0) {
+      setAnalysisError(allErrors[0]);
+      return;
+    }
     
     let zkProof: string | undefined = undefined;
     
